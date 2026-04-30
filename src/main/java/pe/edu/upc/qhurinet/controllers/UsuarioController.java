@@ -1,14 +1,16 @@
 package pe.edu.upc.qhurinet.controllers;
 
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.UsuarioDTO;
+import pe.edu.upc.qhurinet.entities.Role;
 import pe.edu.upc.qhurinet.entities.Usuario;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,13 +22,14 @@ public class UsuarioController {
     @Autowired
     private IUsuarioService uS;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @GetMapping("/lista")
     public ResponseEntity<List<UsuarioDTO>> listar() {
-        ModelMapper m = new ModelMapper();
-
         List<UsuarioDTO> lista = uS.list()
                 .stream()
-                .map(y -> m.map(y, UsuarioDTO.class))
+                .map(this::toDto)
                 .collect(Collectors.toList());
 
         if (lista.isEmpty()) {
@@ -38,21 +41,18 @@ public class UsuarioController {
 
     @PostMapping("/nuevo")
     public ResponseEntity<?> registrar(@RequestBody UsuarioDTO dto) {
-        ModelMapper m = new ModelMapper();
-        Usuario u = m.map(dto, Usuario.class);
-        Usuario cur = uS.insert(u);
-        UsuarioDTO responseDTO = m.map(cur, UsuarioDTO.class);
-        return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
+        Usuario usuario = new Usuario();
+        updateEntityFromDto(usuario, dto, true);
+        Usuario cur = uS.insert(usuario);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(cur));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> buscarPorId(@PathVariable UUID id) {
-        ModelMapper m = new ModelMapper();
         Optional<Usuario> usu = uS.listId(id);
 
         if (usu.isPresent()) {
-            UsuarioDTO dto = m.map(usu.get(), UsuarioDTO.class);
-            return ResponseEntity.ok(dto);
+            return ResponseEntity.ok(toDto(usu.get()));
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Usuario no encontrado");
@@ -68,23 +68,8 @@ public class UsuarioController {
                     .body("Usuario no encontrado");
         }
 
-        Usuario u = existente.get();
-        u.setNombre(dto.getNombre());
-        u.setEmail(dto.getEmail());
-        u.setPasswordHash(dto.getPasswordHash());
-        u.setTelefono(dto.getTelefono());
-        u.setFotoUrl(dto.getFotoUrl());
-        u.setDescripcion(dto.getDescripcion());
-        u.setRol(dto.getRol());
-        u.setTipoCuenta(dto.getTipoCuenta());
-        u.setProveedorAuth(dto.getProveedorAuth());
-        u.setDisponible(dto.getDisponible());
-        u.setVerificado(dto.getVerificado());
-        u.setPuntosTotales(dto.getPuntosTotales());
-        u.setNivelParticipacion(dto.getNivelParticipacion());
-
-        uS.update(u);
-
+        updateEntityFromDto(existente.get(), dto, false);
+        uS.update(existente.get());
         return ResponseEntity.ok("Usuario actualizado correctamente");
     }
 
@@ -99,5 +84,69 @@ public class UsuarioController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Usuario no encontrado");
         }
+    }
+
+    private UsuarioDTO toDto(Usuario usuario) {
+        UsuarioDTO dto = new UsuarioDTO();
+        dto.setId(usuario.getId());
+        dto.setNombre(usuario.getNombre());
+        dto.setEmail(usuario.getEmail());
+        dto.setUsername(usuario.getUsername());
+        dto.setTelefono(usuario.getTelefono());
+        dto.setFotoUrl(usuario.getFotoUrl());
+        dto.setDescripcion(usuario.getDescripcion());
+        dto.setRoles(usuario.getRoles()
+                .stream()
+                .map(Role::getRol)
+                .collect(Collectors.toList()));
+        dto.setTipoCuenta(usuario.getTipoCuenta());
+        dto.setProveedorAuth(usuario.getProveedorAuth());
+        dto.setDisponible(usuario.getDisponible());
+        dto.setVerificado(usuario.getVerificado());
+        dto.setPuntosTotales(usuario.getPuntosTotales());
+        dto.setNivelParticipacion(usuario.getNivelParticipacion());
+        dto.setCreatedAt(usuario.getCreatedAt());
+        dto.setUpdatedAt(usuario.getUpdatedAt());
+        dto.setPasswordHash(null);
+        return dto;
+    }
+
+    private void updateEntityFromDto(Usuario usuario, UsuarioDTO dto, boolean isNew) {
+        usuario.setNombre(dto.getNombre());
+        usuario.setEmail(dto.getEmail());
+        usuario.setUsername(dto.getUsername());
+        usuario.setTelefono(dto.getTelefono());
+        usuario.setFotoUrl(dto.getFotoUrl());
+        usuario.setDescripcion(dto.getDescripcion());
+        usuario.setTipoCuenta(dto.getTipoCuenta());
+        usuario.setProveedorAuth(dto.getProveedorAuth());
+        usuario.setDisponible(dto.getDisponible());
+        usuario.setVerificado(dto.getVerificado());
+        usuario.setPuntosTotales(dto.getPuntosTotales());
+        usuario.setNivelParticipacion(dto.getNivelParticipacion());
+
+        if (dto.getPasswordHash() != null && !dto.getPasswordHash().isBlank()) {
+            usuario.setPasswordHash(passwordEncoder.encode(dto.getPasswordHash()));
+        } else if (isNew) {
+            usuario.setPasswordHash(passwordEncoder.encode("temporal123"));
+        }
+
+        usuario.syncRoles(normalizeRoles(dto.getRoles()));
+    }
+
+    private List<String> normalizeRoles(List<String> roleNames) {
+        List<String> normalizedRoles = roleNames;
+        if (normalizedRoles == null || normalizedRoles.isEmpty()) {
+            normalizedRoles = List.of("GENERADOR");
+        }
+
+        List<String> roles = new ArrayList<>();
+        for (String roleName : normalizedRoles) {
+            if (roleName == null || roleName.isBlank()) {
+                continue;
+            }
+            roles.add(roleName.trim().toUpperCase());
+        }
+        return roles;
     }
 }

@@ -1,17 +1,19 @@
 package pe.edu.upc.qhurinet.dtos;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public class UsuarioDTO {
     private UUID id;
     private String nombre;
     private String email;
+    private String username;
     private String passwordHash;
     private String telefono;
     private String fotoUrl;
     private String descripcion;
-    private String rol;
+    private List<String> roles;
     private String tipoCuenta;
     private String proveedorAuth;
     private Boolean disponible;
@@ -43,6 +45,14 @@ public class UsuarioDTO {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public String getPasswordHash() {
@@ -77,12 +87,12 @@ public class UsuarioDTO {
         this.descripcion = descripcion;
     }
 
-    public String getRol() {
-        return rol;
+    public List<String> getRoles() {
+        return roles;
     }
 
-    public void setRol(String rol) {
-        this.rol = rol;
+    public void setRoles(List<String> roles) {
+        this.roles = roles;
     }
 
     public String getTipoCuenta() {
