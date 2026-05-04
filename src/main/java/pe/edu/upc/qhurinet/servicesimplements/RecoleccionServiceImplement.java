@@ -6,6 +6,7 @@ import pe.edu.upc.qhurinet.entities.Recoleccion;
 import pe.edu.upc.qhurinet.repositories.IRecoleccionRepository;
 import pe.edu.upc.qhurinet.servicesinterfaces.IRecoleccionService;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,5 +39,10 @@ public class RecoleccionServiceImplement implements IRecoleccionService {
     @Override
     public void delete(UUID id) {
         rR.deleteById(id);
+    }
+
+    @Override
+    public List<Object[]> historialUsuario(UUID idUsuario, LocalDate fechaIni, LocalDate fechaFin, String estado) {
+        return rR.historialUsuario(idUsuario, fechaIni, fechaFin, estado);
     }
 }

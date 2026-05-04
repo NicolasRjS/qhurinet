@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.upc.qhurinet.dtos.KgPorMesDTO;
 import pe.edu.upc.qhurinet.dtos.UsuarioDTO;
 import pe.edu.upc.qhurinet.entities.Role;
 import pe.edu.upc.qhurinet.entities.Usuario;
@@ -148,5 +149,25 @@ public class UsuarioController {
             roles.add(roleName.trim().toUpperCase());
         }
         return roles;
+    }
+
+    @GetMapping("/{idUsuario}/estadisticas/kg-por-mes")
+    public ResponseEntity<?> kgRecicladosPorMes(@PathVariable UUID idUsuario) {
+        List<Object[]> lista = uS.kgRecicladosPorMes(idUsuario);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<KgPorMesDTO> respuesta = new ArrayList<>();
+
+        for (Object[] fila : lista) {
+            KgPorMesDTO dto = new KgPorMesDTO();
+            dto.setMes((String) fila[0]);
+            dto.setTotalKg(((Number) fila[1]).doubleValue());
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
     }
 }

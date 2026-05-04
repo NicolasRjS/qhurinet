@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.upc.qhurinet.dtos.HistorialRecoleccionDTO;
 import pe.edu.upc.qhurinet.dtos.RecoleccionDTO;
 import pe.edu.upc.qhurinet.entities.Publicacion;
 import pe.edu.upc.qhurinet.entities.Recoleccion;
@@ -13,6 +14,9 @@ import pe.edu.upc.qhurinet.servicesinterfaces.IPublicacionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IRecoleccionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -149,5 +153,32 @@ public class RecoleccionController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Recoleccion no encontrada");
         }
+    }
+
+    //Historial completo de un usuario por ID
+    @GetMapping("/historial/{idUsuario}")
+    public ResponseEntity<?> historialUsuario(@PathVariable UUID idUsuario,
+                                              @RequestParam(value = "fechaIni", required = false) LocalDate fechaIni,
+                                              @RequestParam(value = "fechaFin", required = false) LocalDate fechaFin,
+                                              @RequestParam(value = "estado", required = false) String estado) {
+        List<Object[]> lista = rS.historialUsuario(idUsuario, fechaIni, fechaFin, estado);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<HistorialRecoleccionDTO> respuesta = new ArrayList<>();
+
+        for (Object[] fila : lista) {
+            HistorialRecoleccionDTO dto = new HistorialRecoleccionDTO();
+            dto.setId((UUID) fila[0]);
+            dto.setFechaProgramada((LocalDateTime) fila[1]);
+            dto.setEstado((String) fila[2]);
+            dto.setTituloPublicacion((String) fila[3]);
+            dto.setRolUsuario((String) fila[4]);
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
     }
 }
