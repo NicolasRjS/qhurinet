@@ -6,9 +6,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.MaterialDTO;
+import pe.edu.upc.qhurinet.dtos.MaterialTopDTO;
 import pe.edu.upc.qhurinet.entities.Material;
 import pe.edu.upc.qhurinet.servicesinterfaces.IMaterialService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -89,5 +91,27 @@ public class MaterialController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Material no encontrado");
         }
+    }
+
+    @GetMapping("/top5")
+    public ResponseEntity<?> listarTop5Materiales() {
+        List<Object[]> lista = mS.top5MaterialesMasReciclados();
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("No hay registros");
+        }
+
+        List<MaterialTopDTO> respuesta = new ArrayList<>();
+
+        for (Object[] fila : lista) {
+            MaterialTopDTO dto = new MaterialTopDTO();
+            dto.setNombreMaterial((String) fila[0]);
+            dto.setCategoria((String) fila[1]);
+            dto.setTotalKg(((Number) fila[2]).doubleValue());
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
     }
 }
