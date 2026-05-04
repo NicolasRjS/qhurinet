@@ -39,4 +39,9 @@ public class PublicacionServiceImplement implements IPublicacionService {
     public void delete(UUID id) {
         pR.deleteById(id);
     }
+
+    @Override
+    public List<Object[]> buscarPublicacionesPorTexto(String texto) {
+        return pR.buscarPublicacionesPorTexto(texto);
+    }
 }

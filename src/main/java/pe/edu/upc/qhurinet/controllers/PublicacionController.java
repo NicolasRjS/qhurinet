@@ -6,12 +6,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.PublicacionDTO;
+import pe.edu.upc.qhurinet.dtos.PublicacionBusquedaDTO;
 import pe.edu.upc.qhurinet.entities.Publicacion;
 import pe.edu.upc.qhurinet.entities.Usuario;
 import pe.edu.upc.qhurinet.servicesinterfaces.IPublicacionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -122,5 +124,29 @@ public class PublicacionController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Publicacion no encontrada");
         }
+    }
+
+    @GetMapping("/buscar")
+    public ResponseEntity<?> buscarPublicaciones(@RequestParam("q") String texto) {
+        List<Object[]> lista = pS.buscarPublicacionesPorTexto(texto);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("No hay registros");
+        }
+
+        List<PublicacionBusquedaDTO> respuesta = new ArrayList<>();
+
+        for (Object[] fila : lista) {
+            PublicacionBusquedaDTO dto = new PublicacionBusquedaDTO();
+            dto.setId((UUID) fila[0]);
+            dto.setTitulo((String) fila[1]);
+            dto.setDireccionReferencia((String) fila[2]);
+            dto.setLatitud(((Number) fila[3]).doubleValue());
+            dto.setLongitud(((Number) fila[4]).doubleValue());
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
     }
 }

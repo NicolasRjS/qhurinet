@@ -12,4 +12,5 @@ public interface IPublicacionService {
     public Optional<Publicacion> listId(UUID id);
     public void update(Publicacion p);
     public void delete(UUID id);
+    public List<Object[]> buscarPublicacionesPorTexto(String texto);
 }
