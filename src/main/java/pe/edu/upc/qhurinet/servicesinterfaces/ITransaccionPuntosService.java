@@ -12,4 +12,5 @@ public interface ITransaccionPuntosService {
     public Optional<TransaccionPuntos> listId(UUID id);
     public void update(TransaccionPuntos t);
     public void delete(UUID id);
+    List<Object[]> totalPuntosGanadosPorMes(UUID idUsuario, String mes);
 }

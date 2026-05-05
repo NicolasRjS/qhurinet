@@ -27,4 +27,13 @@ public interface IUsuarioRepository extends JpaRepository<Usuario, UUID> {
                  EXTRACT(MONTH FROM r.fecha_completada) ASC
         """, nativeQuery = true)
     List<Object[]> kgRecicladosPorMes(@Param("idUsuario") UUID idUsuario);
+
+
+    @Query(value = """
+        SELECT u.id, u.nombre, u.puntos_totales, u.nivel_participacion
+        FROM usuario u
+        ORDER BY u.puntos_totales DESC
+        LIMIT 10
+        """, nativeQuery = true)
+    List<Object[]> rankingUsuariosPorPuntos();
 }

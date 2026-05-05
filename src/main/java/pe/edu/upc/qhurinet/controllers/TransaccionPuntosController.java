@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.upc.qhurinet.dtos.PuntosMesUsuarioDTO;
 import pe.edu.upc.qhurinet.dtos.TransaccionPuntosDTO;
 import pe.edu.upc.qhurinet.entities.TransaccionPuntos;
 import pe.edu.upc.qhurinet.entities.Usuario;
@@ -119,5 +120,19 @@ public class TransaccionPuntosController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Transaccion puntos no encontrada");
         }
+    }
+    @GetMapping("/total-mes/{idUsuario}")
+    public ResponseEntity<?> totalPuntosMes(@PathVariable UUID idUsuario,
+                                            @RequestParam("mes") String mes) {
+        List<Object[]> lista = tS.totalPuntosGanadosPorMes(idUsuario, mes);
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+        Object[] fila = lista.get(0);
+        PuntosMesUsuarioDTO dto = new PuntosMesUsuarioDTO();
+        dto.setIdUsuario((UUID) fila[0]);
+        dto.setNombre((String) fila[1]);
+        dto.setTotalPuntosMes(((Number) fila[2]).intValue());
+        return ResponseEntity.ok(dto);
     }
 }

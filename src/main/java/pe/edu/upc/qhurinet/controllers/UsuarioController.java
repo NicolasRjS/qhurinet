@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.KgPorMesDTO;
 import pe.edu.upc.qhurinet.dtos.UsuarioDTO;
+import pe.edu.upc.qhurinet.dtos.UsuarioRankingDTO;
 import pe.edu.upc.qhurinet.entities.Role;
 import pe.edu.upc.qhurinet.entities.Usuario;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
@@ -168,6 +169,24 @@ public class UsuarioController {
             respuesta.add(dto);
         }
 
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/ranking")
+    public ResponseEntity<?> rankingUsuarios() {
+        List<Object[]> lista = uS.rankingUsuariosPorPuntos();
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+        List<UsuarioRankingDTO> respuesta = new ArrayList<>();
+        for (Object[] fila : lista) {
+            UsuarioRankingDTO dto = new UsuarioRankingDTO();
+            dto.setIdUsuario((UUID) fila[0]);
+            dto.setNombre((String) fila[1]);
+            dto.setPuntosTotales(((Number) fila[2]).intValue());
+            dto.setNivelParticipacion((String) fila[3]);
+            respuesta.add(dto);
+        }
         return ResponseEntity.ok(respuesta);
     }
 }
