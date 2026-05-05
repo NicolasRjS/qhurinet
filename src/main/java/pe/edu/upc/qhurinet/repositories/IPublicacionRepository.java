@@ -18,4 +18,30 @@ public interface IPublicacionRepository extends JpaRepository<Publicacion, UUID>
             " ORDER BY p.created_at DESC",
             nativeQuery = true)
     public List<Object[]> buscarPublicacionesPorTexto(@Param("texto") String texto);
+    @Query(value = """
+        SELECT p.id, p.titulo, p.latitud, p.longitud,
+        (6371 * acos(cos(radians(:lat)) * cos(radians(p.latitud)) *
+        cos(radians(p.longitud) - radians(:lng)) +
+        sin(radians(:lat)) * sin(radians(p.latitud)))) AS distancia_km
+        FROM publicacion p
+        WHERE p.estado = 'activa'
+        GROUP BY p.id, p.titulo, p.latitud, p.longitud
+        HAVING (6371 * acos(cos(radians(:lat)) * cos(radians(p.latitud)) *
+        cos(radians(p.longitud) - radians(:lng)) +
+        sin(radians(:lat)) * sin(radians(p.latitud)))) <= :radio
+        ORDER BY distancia_km ASC
+        """, nativeQuery = true)
+    List<Object[]> publicacionesCercanas(@Param("lat") Double lat,
+                                         @Param("lng") Double lng,
+                                         @Param("radio") Double radio);
+    @Query(value = """
+        SELECT p.id, p.titulo, p.latitud, p.longitud, m.nombre, pm.cantidad
+        FROM publicacion p
+        INNER JOIN publicacion_material pm ON p.id = pm.id_publicacion
+        INNER JOIN material m ON pm.id_material = m.id
+        WHERE p.estado = 'activa'
+        AND LOWER(m.categoria) = LOWER(:categoria)
+        ORDER BY p.created_at DESC
+        """, nativeQuery = true)
+    List<Object[]> publicacionesPorCategoriaMaterial(@Param("categoria") String categoria);
 }

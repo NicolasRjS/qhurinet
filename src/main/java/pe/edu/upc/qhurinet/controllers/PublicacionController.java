@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.upc.qhurinet.dtos.PublicacionCategoriaDTO;
+import pe.edu.upc.qhurinet.dtos.PublicacionCercanaDTO;
 import pe.edu.upc.qhurinet.dtos.PublicacionDTO;
 import pe.edu.upc.qhurinet.dtos.PublicacionBusquedaDTO;
 import pe.edu.upc.qhurinet.entities.Publicacion;
@@ -144,6 +146,53 @@ public class PublicacionController {
             dto.setDireccionReferencia((String) fila[2]);
             dto.setLatitud(((Number) fila[3]).doubleValue());
             dto.setLongitud(((Number) fila[4]).doubleValue());
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+    @GetMapping("/cercanas")
+    public ResponseEntity<?> publicacionesCercanas(@RequestParam("lat") Double lat,
+                                                   @RequestParam("lng") Double lng,
+                                                   @RequestParam("radio") Double radio) {
+        List<Object[]> lista = pS.publicacionesCercanas(lat, lng, radio);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<PublicacionCercanaDTO> respuesta = new ArrayList<>();
+
+        for (Object[] fila : lista) {
+            PublicacionCercanaDTO dto = new PublicacionCercanaDTO();
+            dto.setId((UUID) fila[0]);
+            dto.setTitulo((String) fila[1]);
+            dto.setLatitud(((Number) fila[2]).doubleValue());
+            dto.setLongitud(((Number) fila[3]).doubleValue());
+            dto.setDistanciaKm(((Number) fila[4]).doubleValue());
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+    @GetMapping("/por-categoria/{categoria}")
+    public ResponseEntity<?> publicacionesPorCategoria(@PathVariable String categoria) {
+        List<Object[]> lista = pS.publicacionesPorCategoriaMaterial(categoria);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<PublicacionCategoriaDTO> respuesta = new ArrayList<>();
+
+        for (Object[] fila : lista) {
+            PublicacionCategoriaDTO dto = new PublicacionCategoriaDTO();
+            dto.setIdPublicacion((UUID) fila[0]);
+            dto.setTitulo((String) fila[1]);
+            dto.setLatitud(((Number) fila[2]).doubleValue());
+            dto.setLongitud(((Number) fila[3]).doubleValue());
+            dto.setNombreMaterial((String) fila[4]);
+            dto.setCantidad(((Number) fila[5]).doubleValue());
             respuesta.add(dto);
         }
 
