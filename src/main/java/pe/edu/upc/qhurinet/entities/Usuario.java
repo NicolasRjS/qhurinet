@@ -1,16 +1,23 @@
 package pe.edu.upc.qhurinet.entities;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "Usuario")
@@ -27,6 +34,9 @@ public class Usuario {
     @Column(name = "email", length = 200, nullable = false, unique = true)
     private String email;
 
+    @Column(name = "username", length = 50, nullable = false, unique = true)
+    private String username;
+
     @Column(name = "password_hash", length = 255, nullable = false)
     private String passwordHash;
 
@@ -38,9 +48,6 @@ public class Usuario {
 
     @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
-
-    @Column(name = "rol", length = 30, nullable = false)
-    private String rol;
 
     @Column(name = "tipo_cuenta", length = 30, nullable = false)
     private String tipoCuenta;
@@ -66,18 +73,21 @@ public class Usuario {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<Role> roles = new ArrayList<>();
+
     public Usuario() {
     }
 
-    public Usuario(UUID id, String nombre, String email, String passwordHash, String telefono, String fotoUrl, String descripcion, String rol, String tipoCuenta, String proveedorAuth, Boolean disponible, Boolean verificado, Integer puntosTotales, String nivelParticipacion, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public Usuario(UUID id, String nombre, String email, String username, String passwordHash, String telefono, String fotoUrl, String descripcion, String tipoCuenta, String proveedorAuth, Boolean disponible, Boolean verificado, Integer puntosTotales, String nivelParticipacion, LocalDateTime createdAt, LocalDateTime updatedAt, List<Role> roles) {
         this.id = id;
         this.nombre = nombre;
         this.email = email;
+        this.username = username;
         this.passwordHash = passwordHash;
         this.telefono = telefono;
         this.fotoUrl = fotoUrl;
         this.descripcion = descripcion;
-        this.rol = rol;
         this.tipoCuenta = tipoCuenta;
         this.proveedorAuth = proveedorAuth;
         this.disponible = disponible;
@@ -86,6 +96,7 @@ public class Usuario {
         this.nivelParticipacion = nivelParticipacion;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        setRoles(roles);
     }
 
     @PrePersist
@@ -93,9 +104,6 @@ public class Usuario {
         LocalDateTime fechaActual = LocalDateTime.now();
         this.createdAt = fechaActual;
         this.updatedAt = fechaActual;
-        if (this.rol == null) {
-            this.rol = "emisor";
-        }
         if (this.proveedorAuth == null) {
             this.proveedorAuth = "local";
         }
@@ -142,6 +150,14 @@ public class Usuario {
         this.email = email;
     }
 
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     public String getPasswordHash() {
         return passwordHash;
     }
@@ -172,14 +188,6 @@ public class Usuario {
 
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
-    }
-
-    public String getRol() {
-        return rol;
-    }
-
-    public void setRol(String rol) {
-        this.rol = rol;
     }
 
     public String getTipoCuenta() {
@@ -244,5 +252,42 @@ public class Usuario {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public List<Role> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(List<Role> roles) {
+        this.roles.clear();
+        if (roles != null) {
+            roles.forEach(this::addRole);
+        }
+    }
+
+    public void addRole(Role role) {
+        role.setUsuario(this);
+        this.roles.add(role);
+    }
+
+    public void syncRoles(List<String> roleNames) {
+        Set<String> normalizedRoles = roleNames.stream()
+                .map(String::trim)
+                .map(String::toUpperCase)
+                .collect(Collectors.toSet());
+
+        this.roles.removeIf(role -> !normalizedRoles.contains(role.getRol()));
+
+        Set<String> currentRoles = this.roles.stream()
+                .map(Role::getRol)
+                .collect(Collectors.toSet());
+
+        normalizedRoles.stream()
+                .filter(roleName -> !currentRoles.contains(roleName))
+                .forEach(roleName -> {
+                    Role role = new Role();
+                    role.setRol(roleName);
+                    addRole(role);
+                });
     }
 }

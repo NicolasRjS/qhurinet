@@ -38,4 +38,9 @@ public class MaterialServiceImplement implements IMaterialService {
     public void delete(int id) {
         mR.deleteById(id);
     }
+
+    @Override
+    public List<Object[]> top5MaterialesMasReciclados() {
+        return mR.top5MaterialesMasReciclados();
+    }
 }

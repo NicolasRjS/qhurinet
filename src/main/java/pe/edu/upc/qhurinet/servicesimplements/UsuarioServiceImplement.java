@@ -39,4 +39,9 @@ public class UsuarioServiceImplement implements IUsuarioService {
     public void delete(UUID id) {
         uR.deleteById(id);
     }
+
+    @Override
+    public List<Object[]> kgRecicladosPorMes(UUID idUsuario) {
+        return uR.kgRecicladosPorMes(idUsuario);
+    }
 }

@@ -12,4 +12,5 @@ public interface IUsuarioService {
     public Optional<Usuario> listId(UUID id);
     public void update(Usuario u);
     public void delete(UUID id);
+    List<Object[]> kgRecicladosPorMes(UUID idUsuario);
 }

@@ -11,4 +11,5 @@ public interface IMaterialService {
     public Optional<Material> listId(int id);
     public void update(Material m);
     public void delete(int id);
+    public List<Object[]> top5MaterialesMasReciclados();
 }

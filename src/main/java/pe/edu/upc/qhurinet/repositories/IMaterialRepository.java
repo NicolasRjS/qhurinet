@@ -1,7 +1,19 @@
 package pe.edu.upc.qhurinet.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import pe.edu.upc.qhurinet.entities.Material;
 
+import java.util.List;
+
 public interface IMaterialRepository extends JpaRepository<Material, Integer> {
+    @Query(value = "\n" +
+            "SELECT m.nombre, m.categoria, COALESCE(SUM(pm.cantidad), 0) AS total_kg\n" +
+            " FROM material m\n" +
+            " INNER JOIN publicacion_material pm ON m.id = pm.id_material\n" +
+            " GROUP BY m.id, m.nombre, m.categoria\n" +
+            " ORDER BY total_kg DESC\n" +
+            " LIMIT 5",
+            nativeQuery = true)
+    public List<Object[]> top5MaterialesMasReciclados();
 }
