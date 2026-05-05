@@ -44,4 +44,12 @@ public class PublicacionServiceImplement implements IPublicacionService {
     public List<Object[]> buscarPublicacionesPorTexto(String texto) {
         return pR.buscarPublicacionesPorTexto(texto);
     }
+    @Override
+    public List<Object[]> publicacionesCercanas(Double lat, Double lng, Double radio) {
+        return pR.publicacionesCercanas(lat, lng, radio);
+    }
+    @Override
+    public List<Object[]> publicacionesPorCategoriaMaterial(String categoria) {
+        return pR.publicacionesPorCategoriaMaterial(categoria);
+    }
 }
