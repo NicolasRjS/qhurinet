@@ -13,4 +13,5 @@ public interface IUsuarioService {
     public void update(Usuario u);
     public void delete(UUID id);
     List<Object[]> kgRecicladosPorMes(UUID idUsuario);
+    List<Object[]> rankingUsuariosPorPuntos();
 }

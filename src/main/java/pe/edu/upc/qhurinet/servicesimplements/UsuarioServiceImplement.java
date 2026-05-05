@@ -44,4 +44,9 @@ public class UsuarioServiceImplement implements IUsuarioService {
     public List<Object[]> kgRecicladosPorMes(UUID idUsuario) {
         return uR.kgRecicladosPorMes(idUsuario);
     }
+
+    @Override
+    public List<Object[]> rankingUsuariosPorPuntos() {
+        return uR.rankingUsuariosPorPuntos();
+    }
 }

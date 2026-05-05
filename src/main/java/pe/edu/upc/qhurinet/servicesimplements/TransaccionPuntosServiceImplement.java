@@ -39,4 +39,8 @@ public class TransaccionPuntosServiceImplement implements ITransaccionPuntosServ
     public void delete(UUID id) {
         tR.deleteById(id);
     }
+    @Override
+    public List<Object[]> totalPuntosGanadosPorMes(UUID idUsuario, String mes) {
+        return tR.totalPuntosGanadosPorMes(idUsuario, mes);
+    }
 }
