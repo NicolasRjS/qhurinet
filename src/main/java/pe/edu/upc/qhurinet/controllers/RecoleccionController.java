@@ -6,7 +6,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.HistorialRecoleccionDTO;
+import pe.edu.upc.qhurinet.dtos.PromedioRecolectorDTO;
 import pe.edu.upc.qhurinet.dtos.RecoleccionDTO;
+import pe.edu.upc.qhurinet.dtos.RecoleccionRangoDTO;
 import pe.edu.upc.qhurinet.entities.Publicacion;
 import pe.edu.upc.qhurinet.entities.Recoleccion;
 import pe.edu.upc.qhurinet.entities.Usuario;
@@ -176,6 +178,51 @@ public class RecoleccionController {
             dto.setEstado((String) fila[2]);
             dto.setTituloPublicacion((String) fila[3]);
             dto.setRolUsuario((String) fila[4]);
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/promedio-recolector/{idRecolector}")
+    public ResponseEntity<?> promedioRecolector(@PathVariable UUID idRecolector) {
+        List<Object[]> lista = rS.promedioCalificacionRecolector(idRecolector);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        Object[] fila = lista.get(0);
+
+        PromedioRecolectorDTO dto = new PromedioRecolectorDTO();
+        dto.setIdRecolector((UUID) fila[0]);
+        dto.setNombreRecolector((String) fila[1]);
+        dto.setPuntuacionPromedio(((Number) fila[2]).doubleValue());
+        dto.setTotalRecolecciones(((Number) fila[3]).longValue());
+
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/rango")
+    public ResponseEntity<?> recoleccionesPorRango(@RequestParam("fechaIni") LocalDate fechaIni,
+                                                   @RequestParam("fechaFin") LocalDate fechaFin,
+                                                   @RequestParam(value = "estado", required = false) String estado) {
+        List<Object[]> lista = rS.recoleccionesPorRangoYEstado(fechaIni, fechaFin, estado);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<RecoleccionRangoDTO> respuesta = new ArrayList<>();
+
+        for (Object[] fila : lista) {
+            RecoleccionRangoDTO dto = new RecoleccionRangoDTO();
+            dto.setId((UUID) fila[0]);
+            dto.setFechaProgramada((LocalDateTime) fila[1]);
+            dto.setFechaCompletada((LocalDateTime) fila[2]);
+            dto.setEstado((String) fila[3]);
+            dto.setTituloPublicacion((String) fila[4]);
+            dto.setNombreRecolector((String) fila[5]);
             respuesta.add(dto);
         }
 

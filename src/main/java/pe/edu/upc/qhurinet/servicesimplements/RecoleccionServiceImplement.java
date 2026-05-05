@@ -45,4 +45,14 @@ public class RecoleccionServiceImplement implements IRecoleccionService {
     public List<Object[]> historialUsuario(UUID idUsuario, LocalDate fechaIni, LocalDate fechaFin, String estado) {
         return rR.historialUsuario(idUsuario, fechaIni, fechaFin, estado);
     }
+
+    @Override
+    public List<Object[]> promedioCalificacionRecolector(UUID idRecolector) {
+        return rR.promedioCalificacionRecolector(idRecolector);
+    }
+
+    @Override
+    public List<Object[]> recoleccionesPorRangoYEstado(LocalDate fechaIni, LocalDate fechaFin, String estado) {
+        return rR.recoleccionesPorRangoYEstado(fechaIni, fechaFin, estado);
+    }
 }

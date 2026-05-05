@@ -25,4 +25,30 @@ public interface IRecoleccionRepository extends JpaRepository<Recoleccion, UUID>
                                     @Param("fechaIni") LocalDate fechaIni,
                                     @Param("fechaFin") LocalDate fechaFin,
                                     @Param("estado") String estado);
+
+    @Query(value = """
+        SELECT u.id, u.nombre, COALESCE(AVG(c.puntuacion), 0) AS puntuacion_promedio,
+               COUNT(r.id) AS total_recolecciones
+        FROM usuario u
+        INNER JOIN recoleccion r ON u.id = r.id_recolector
+        INNER JOIN calificacion c ON r.id = c.id_recoleccion
+        WHERE u.id = :idRecolector
+        AND r.estado = 'completada'
+        GROUP BY u.id, u.nombre
+        """, nativeQuery = true)
+    List<Object[]> promedioCalificacionRecolector(@Param("idRecolector") UUID idRecolector);
+
+    @Query(value = """
+        SELECT r.id, r.fecha_programada, r.fecha_completada, r.estado,
+               p.titulo, u.nombre
+        FROM recoleccion r
+        INNER JOIN publicacion p ON r.id_publicacion = p.id
+        INNER JOIN usuario u ON r.id_recolector = u.id
+        WHERE CAST(r.fecha_programada AS date) BETWEEN :fechaIni AND :fechaFin
+        AND (:estado IS NULL OR r.estado = :estado)
+        ORDER BY r.fecha_programada ASC
+        """, nativeQuery = true)
+    List<Object[]> recoleccionesPorRangoYEstado(@Param("fechaIni") LocalDate fechaIni,
+                                                @Param("fechaFin") LocalDate fechaFin,
+                                                @Param("estado") String estado);
 }

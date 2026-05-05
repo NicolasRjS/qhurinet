@@ -14,4 +14,6 @@ public interface IRecoleccionService {
     public void update(Recoleccion r);
     public void delete(UUID id);
     List<Object[]> historialUsuario(UUID idUsuario, LocalDate fechaIni, LocalDate fechaFin, String estado);
+    List<Object[]> promedioCalificacionRecolector(UUID idRecolector);
+    List<Object[]> recoleccionesPorRangoYEstado(LocalDate fechaIni, LocalDate fechaFin, String estado);
 }
