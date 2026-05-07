@@ -5,11 +5,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.upc.qhurinet.dtos.EstadisticasResumenDTO;
+import pe.edu.upc.qhurinet.dtos.KgPorMesDTO;
+import pe.edu.upc.qhurinet.dtos.PerfilRecolectorDTO;
+import pe.edu.upc.qhurinet.dtos.ResenaRecolectorDTO;
 import pe.edu.upc.qhurinet.dtos.UsuarioDTO;
+import pe.edu.upc.qhurinet.dtos.UsuarioRankingDTO;
 import pe.edu.upc.qhurinet.entities.Role;
 import pe.edu.upc.qhurinet.entities.Usuario;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -148,5 +154,156 @@ public class UsuarioController {
             roles.add(roleName.trim().toUpperCase());
         }
         return roles;
+    }
+
+    @GetMapping("/{idUsuario}/estadisticas/kg-por-mes")
+    public ResponseEntity<?> kgRecicladosPorMes(@PathVariable UUID idUsuario) {
+        List<Object[]> lista = uS.kgRecicladosPorMes(idUsuario);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<KgPorMesDTO> respuesta = new ArrayList<>();
+
+        for (Object[] fila : lista) {
+            KgPorMesDTO dto = new KgPorMesDTO();
+            dto.setMes((String) fila[0]);
+            dto.setTotalKg(((Number) fila[1]).doubleValue());
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/ranking")
+    public ResponseEntity<?> rankingUsuarios() {
+        List<Object[]> lista = uS.rankingUsuariosPorPuntos();
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+        List<UsuarioRankingDTO> respuesta = new ArrayList<>();
+        for (Object[] fila : lista) {
+            UsuarioRankingDTO dto = new UsuarioRankingDTO();
+            dto.setIdUsuario((UUID) fila[0]);
+            dto.setNombre((String) fila[1]);
+            dto.setPuntosTotales(((Number) fila[2]).intValue());
+            dto.setNivelParticipacion((String) fila[3]);
+            respuesta.add(dto);
+        }
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/{idRecolector}/perfil-recolector")
+    public ResponseEntity<?> perfilRecolector(@PathVariable UUID idRecolector) {
+        List<Object[]> lista = uS.perfilRecolector(idRecolector);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        Object[] fila = lista.get(0);
+        PerfilRecolectorDTO dto = new PerfilRecolectorDTO();
+        dto.setIdRecolector(toUuid(fila[0]));
+        dto.setNombre((String) fila[1]);
+        dto.setEmail((String) fila[2]);
+        dto.setTelefono((String) fila[3]);
+        dto.setFotoUrl((String) fila[4]);
+        dto.setDescripcion((String) fila[5]);
+        dto.setDisponible(toBoolean(fila[6]));
+        dto.setVerificado(toBoolean(fila[7]));
+        dto.setPuntosTotales(toInteger(fila[8]));
+        dto.setNivelParticipacion((String) fila[9]);
+        dto.setPuntuacionPromedio(toDouble(fila[10]));
+        dto.setTotalValoraciones(toLong(fila[11]));
+        dto.setTotalRecolecciones(toLong(fila[12]));
+        dto.setComentariosDestacados(mapComentariosRecolector(uS.comentariosRecolector(idRecolector)));
+
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/{idUsuario}/estadisticas/resumen")
+    public ResponseEntity<?> estadisticasResumen(@PathVariable UUID idUsuario) {
+        List<Object[]> lista = uS.estadisticasResumenUsuario(idUsuario);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        Object[] fila = lista.get(0);
+        EstadisticasResumenDTO dto = new EstadisticasResumenDTO();
+        dto.setIdUsuario(toUuid(fila[0]));
+        dto.setNombre((String) fila[1]);
+        dto.setPuntosTotales(toInteger(fila[2]));
+        dto.setNivelParticipacion((String) fila[3]);
+        dto.setPublicaciones(toLong(fila[4]));
+        dto.setEntregasComoEmisor(toLong(fila[5]));
+        dto.setRecojosComoRecolector(toLong(fila[6]));
+        dto.setKgReciclados(toDouble(fila[7]));
+        dto.setIncidencias(toLong(fila[8]));
+
+        return ResponseEntity.ok(dto);
+    }
+
+    private List<ResenaRecolectorDTO> mapComentariosRecolector(List<Object[]> filas) {
+        List<ResenaRecolectorDTO> comentarios = new ArrayList<>();
+        for (Object[] fila : filas) {
+            ResenaRecolectorDTO dto = new ResenaRecolectorDTO();
+            dto.setIdCalificacion(toUuid(fila[0]));
+            dto.setPuntuacion(toInteger(fila[1]));
+            dto.setComentario((String) fila[2]);
+            dto.setCreatedAt(toLocalDateTime(fila[3]));
+            dto.setAutor((String) fila[4]);
+            comentarios.add(dto);
+        }
+        return comentarios;
+    }
+
+    private UUID toUuid(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof UUID uuid) {
+            return uuid;
+        }
+        return UUID.fromString(value.toString());
+    }
+
+    private Integer toInteger(Object value) {
+        return value == null ? null : ((Number) value).intValue();
+    }
+
+    private Long toLong(Object value) {
+        return value == null ? null : ((Number) value).longValue();
+    }
+
+    private Double toDouble(Object value) {
+        return value == null ? null : ((Number) value).doubleValue();
+    }
+
+    private Boolean toBoolean(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        return Boolean.parseBoolean(value.toString());
+    }
+
+    private LocalDateTime toLocalDateTime(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime;
+        }
+        if (value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        return LocalDateTime.parse(value.toString().replace(" ", "T"));
     }
 }

@@ -12,4 +12,9 @@ public interface IUsuarioService {
     public Optional<Usuario> listId(UUID id);
     public void update(Usuario u);
     public void delete(UUID id);
+    List<Object[]> kgRecicladosPorMes(UUID idUsuario);
+    List<Object[]> rankingUsuariosPorPuntos();
+    List<Object[]> perfilRecolector(UUID idRecolector);
+    List<Object[]> comentariosRecolector(UUID idRecolector);
+    List<Object[]> estadisticasResumenUsuario(UUID idUsuario);
 }

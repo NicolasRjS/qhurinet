@@ -39,4 +39,29 @@ public class UsuarioServiceImplement implements IUsuarioService {
     public void delete(UUID id) {
         uR.deleteById(id);
     }
+
+    @Override
+    public List<Object[]> kgRecicladosPorMes(UUID idUsuario) {
+        return uR.kgRecicladosPorMes(idUsuario);
+    }
+
+    @Override
+    public List<Object[]> rankingUsuariosPorPuntos() {
+        return uR.rankingUsuariosPorPuntos();
+    }
+
+    @Override
+    public List<Object[]> perfilRecolector(UUID idRecolector) {
+        return uR.perfilRecolector(idRecolector);
+    }
+
+    @Override
+    public List<Object[]> comentariosRecolector(UUID idRecolector) {
+        return uR.comentariosRecolector(idRecolector);
+    }
+
+    @Override
+    public List<Object[]> estadisticasResumenUsuario(UUID idUsuario) {
+        return uR.estadisticasResumenUsuario(idUsuario);
+    }
 }

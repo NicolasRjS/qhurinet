@@ -5,10 +5,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.upc.qhurinet.dtos.IncentivoDisponibleDTO;
 import pe.edu.upc.qhurinet.dtos.IncentivoDTO;
 import pe.edu.upc.qhurinet.entities.Incentivo;
 import pe.edu.upc.qhurinet.servicesinterfaces.IIncentivoService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -96,5 +98,59 @@ public class IncentivoController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Incentivo no encontrado");
         }
+    }
+
+    @GetMapping("/disponibles/{idUsuario}")
+    public ResponseEntity<?> incentivosDisponibles(@PathVariable UUID idUsuario) {
+        List<Object[]> lista = iS.incentivosDisponiblesUsuario(idUsuario);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<IncentivoDisponibleDTO> respuesta = new ArrayList<>();
+        for (Object[] fila : lista) {
+            IncentivoDisponibleDTO dto = new IncentivoDisponibleDTO();
+            dto.setIdIncentivo(toUuid(fila[0]));
+            dto.setTipo((String) fila[1]);
+            dto.setNombre((String) fila[2]);
+            dto.setDescripcion((String) fila[3]);
+            dto.setCostoPuntos(toInteger(fila[4]));
+            dto.setStock(toInteger(fila[5]));
+            dto.setActivo(toBoolean(fila[6]));
+            dto.setPuntosUsuario(toInteger(fila[7]));
+            dto.setPuntosSuficientes(toBoolean(fila[8]));
+            dto.setYaRegistrado(toBoolean(fila[9]));
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    private UUID toUuid(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof UUID uuid) {
+            return uuid;
+        }
+        return UUID.fromString(value.toString());
+    }
+
+    private Integer toInteger(Object value) {
+        return value == null ? null : ((Number) value).intValue();
+    }
+
+    private Boolean toBoolean(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        return Boolean.parseBoolean(value.toString());
     }
 }

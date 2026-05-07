@@ -12,4 +12,5 @@ public interface IMaterialService {
     public void update(Material m);
     public void delete(int id);
     public List<Object[]> top5MaterialesMasReciclados();
+    List<Object[]> sugerirCategoriaMaterial(String texto);
 }

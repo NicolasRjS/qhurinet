@@ -43,4 +43,9 @@ public class MaterialServiceImplement implements IMaterialService {
     public List<Object[]> top5MaterialesMasReciclados() {
         return mR.top5MaterialesMasReciclados();
     }
+
+    @Override
+    public List<Object[]> sugerirCategoriaMaterial(String texto) {
+        return mR.sugerirCategoriaMaterial(texto);
+    }
 }

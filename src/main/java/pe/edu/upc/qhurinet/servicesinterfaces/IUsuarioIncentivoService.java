@@ -12,4 +12,5 @@ public interface IUsuarioIncentivoService {
     public Optional<UsuarioIncentivo> listId(UUID id);
     public void update(UsuarioIncentivo u);
     public void delete(UUID id);
+    List<Object[]> progresoIncentivosUsuario(UUID idUsuario);
 }

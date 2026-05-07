@@ -2,6 +2,7 @@ package pe.edu.upc.qhurinet.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import pe.edu.upc.qhurinet.entities.Material;
 
 import java.util.List;
@@ -16,4 +17,17 @@ public interface IMaterialRepository extends JpaRepository<Material, Integer> {
             " LIMIT 5",
             nativeQuery = true)
     public List<Object[]> top5MaterialesMasReciclados();
+
+    @Query(value = """
+            SELECT m.id, m.nombre, m.categoria, m.descripcion, m.puntos_por_kg
+            FROM material m
+            WHERE LOWER(m.nombre) LIKE LOWER(CONCAT('%', :texto, '%'))
+               OR LOWER(COALESCE(m.descripcion, '')) LIKE LOWER(CONCAT('%', :texto, '%'))
+               OR LOWER(m.categoria) LIKE LOWER(CONCAT('%', :texto, '%'))
+            ORDER BY
+                CASE WHEN LOWER(m.nombre) = LOWER(:texto) THEN 0 ELSE 1 END,
+                m.nombre ASC
+            LIMIT 5
+            """, nativeQuery = true)
+    List<Object[]> sugerirCategoriaMaterial(@Param("texto") String texto);
 }

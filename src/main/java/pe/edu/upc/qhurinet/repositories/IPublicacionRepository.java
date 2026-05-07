@@ -18,4 +18,45 @@ public interface IPublicacionRepository extends JpaRepository<Publicacion, UUID>
             " ORDER BY p.created_at DESC",
             nativeQuery = true)
     public List<Object[]> buscarPublicacionesPorTexto(@Param("texto") String texto);
+    @Query(value = """
+        SELECT p.id, p.titulo, p.latitud, p.longitud,
+        (6371 * acos(cos(radians(:lat)) * cos(radians(p.latitud)) *
+        cos(radians(p.longitud) - radians(:lng)) +
+        sin(radians(:lat)) * sin(radians(p.latitud)))) AS distancia_km
+        FROM publicacion p
+        WHERE p.estado = 'activa'
+        GROUP BY p.id, p.titulo, p.latitud, p.longitud
+        HAVING (6371 * acos(cos(radians(:lat)) * cos(radians(p.latitud)) *
+        cos(radians(p.longitud) - radians(:lng)) +
+        sin(radians(:lat)) * sin(radians(p.latitud)))) <= :radio
+        ORDER BY distancia_km ASC
+        """, nativeQuery = true)
+    List<Object[]> publicacionesCercanas(@Param("lat") Double lat,
+                                         @Param("lng") Double lng,
+                                         @Param("radio") Double radio);
+    @Query(value = """
+        SELECT p.id, p.titulo, p.latitud, p.longitud, m.nombre, pm.cantidad
+        FROM publicacion p
+        INNER JOIN publicacion_material pm ON p.id = pm.id_publicacion
+        INNER JOIN material m ON pm.id_material = m.id
+        WHERE p.estado = 'activa'
+        AND LOWER(m.categoria) = LOWER(:categoria)
+        ORDER BY p.created_at DESC
+        """, nativeQuery = true)
+    List<Object[]> publicacionesPorCategoriaMaterial(@Param("categoria") String categoria);
+
+    @Query(value = """
+        SELECT p.id, p.titulo, p.estado, p.fecha_disponibilidad, p.direccion_referencia,
+               m.nombre, pm.cantidad, pm.unidad,
+               r.id AS id_recoleccion, r.estado AS estado_recoleccion, r.fecha_programada,
+               u.id AS id_recolector, u.nombre AS nombre_recolector
+        FROM publicacion p
+        INNER JOIN publicacion_material pm ON p.id = pm.id_publicacion
+        INNER JOIN material m ON pm.id_material = m.id
+        LEFT JOIN recoleccion r ON r.id_publicacion = p.id
+        LEFT JOIN usuario u ON r.id_recolector = u.id
+        WHERE p.id_usuario = :idUsuario
+        ORDER BY COALESCE(r.fecha_programada, p.created_at) DESC
+        """, nativeQuery = true)
+    List<Object[]> historialMaterialesUsuario(@Param("idUsuario") UUID idUsuario);
 }

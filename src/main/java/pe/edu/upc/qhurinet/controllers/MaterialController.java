@@ -6,10 +6,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.MaterialDTO;
+import pe.edu.upc.qhurinet.dtos.MaterialSugerenciaDTO;
 import pe.edu.upc.qhurinet.dtos.MaterialTopDTO;
 import pe.edu.upc.qhurinet.entities.Material;
 import pe.edu.upc.qhurinet.servicesinterfaces.IMaterialService;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -113,5 +115,38 @@ public class MaterialController {
         }
 
         return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/sugerencia")
+    public ResponseEntity<?> sugerirCategoria(@RequestParam("texto") String texto) {
+        List<Object[]> lista = mS.sugerirCategoriaMaterial(texto);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Material no reconocido. Seleccione una categoria manualmente");
+        }
+
+        List<MaterialSugerenciaDTO> respuesta = new ArrayList<>();
+        for (Object[] fila : lista) {
+            MaterialSugerenciaDTO dto = new MaterialSugerenciaDTO();
+            dto.setIdMaterial(((Number) fila[0]).intValue());
+            dto.setNombreMaterial((String) fila[1]);
+            dto.setCategoria((String) fila[2]);
+            dto.setDescripcion((String) fila[3]);
+            dto.setPuntosPorKg(toBigDecimal(fila[4]));
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof BigDecimal bigDecimal) {
+            return bigDecimal;
+        }
+        return new BigDecimal(value.toString());
     }
 }

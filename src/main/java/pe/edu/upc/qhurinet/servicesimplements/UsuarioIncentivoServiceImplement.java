@@ -39,4 +39,9 @@ public class UsuarioIncentivoServiceImplement implements IUsuarioIncentivoServic
     public void delete(UUID id) {
         uR.deleteById(id);
     }
+
+    @Override
+    public List<Object[]> progresoIncentivosUsuario(UUID idUsuario) {
+        return uR.progresoIncentivosUsuario(idUsuario);
+    }
 }

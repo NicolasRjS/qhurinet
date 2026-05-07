@@ -39,4 +39,9 @@ public class IncentivoServiceImplement implements IIncentivoService {
     public void delete(UUID id) {
         iR.deleteById(id);
     }
+
+    @Override
+    public List<Object[]> incentivosDisponiblesUsuario(UUID idUsuario) {
+        return iR.incentivosDisponiblesUsuario(idUsuario);
+    }
 }

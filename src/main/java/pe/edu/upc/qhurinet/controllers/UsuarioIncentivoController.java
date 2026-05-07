@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.upc.qhurinet.dtos.ProgresoIncentivoDTO;
 import pe.edu.upc.qhurinet.dtos.UsuarioIncentivoDTO;
 import pe.edu.upc.qhurinet.entities.Incentivo;
 import pe.edu.upc.qhurinet.entities.Usuario;
@@ -13,6 +14,8 @@ import pe.edu.upc.qhurinet.servicesinterfaces.IIncentivoService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioIncentivoService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -141,5 +144,72 @@ public class UsuarioIncentivoController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Usuario incentivo no encontrado");
         }
+    }
+
+    @GetMapping("/progreso/{idUsuario}")
+    public ResponseEntity<?> progresoIncentivos(@PathVariable UUID idUsuario) {
+        List<Object[]> lista = uS.progresoIncentivosUsuario(idUsuario);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<ProgresoIncentivoDTO> respuesta = new ArrayList<>();
+        for (Object[] fila : lista) {
+            ProgresoIncentivoDTO dto = new ProgresoIncentivoDTO();
+            dto.setIdUsuarioIncentivo(toUuid(fila[0]));
+            dto.setIdIncentivo(toUuid(fila[1]));
+            dto.setNombreIncentivo((String) fila[2]);
+            dto.setTipo((String) fila[3]);
+            dto.setMetaCantidad(toInteger(fila[4]));
+            dto.setMetaUnidad((String) fila[5]);
+            dto.setCantidadActual(toInteger(fila[6]));
+            dto.setEstado((String) fila[7]);
+            dto.setCompletadoEn(toLocalDateTime(fila[8]));
+            dto.setPuedeReclamar(toBoolean(fila[9]));
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    private UUID toUuid(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof UUID uuid) {
+            return uuid;
+        }
+        return UUID.fromString(value.toString());
+    }
+
+    private Integer toInteger(Object value) {
+        return value == null ? null : ((Number) value).intValue();
+    }
+
+    private Boolean toBoolean(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        return Boolean.parseBoolean(value.toString());
+    }
+
+    private LocalDateTime toLocalDateTime(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime;
+        }
+        if (value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        return LocalDateTime.parse(value.toString().replace(" ", "T"));
     }
 }

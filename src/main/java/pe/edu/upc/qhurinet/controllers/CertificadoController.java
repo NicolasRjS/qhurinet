@@ -45,6 +45,26 @@ public class CertificadoController {
         return ResponseEntity.ok(lista);
     }
 
+    @GetMapping("/por-dificultad")
+    public ResponseEntity<?> certificadosPorDificultad(@RequestParam("nivel") String nivel) {
+        ModelMapper m = new ModelMapper();
+
+        List<CertificadoDTO> lista = cS.certificadosPorDificultad(nivel)
+                .stream()
+                .map(y -> {
+                    CertificadoDTO dto = m.map(y, CertificadoDTO.class);
+                    dto.setIdUsuario(y.getUsuario().getId());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        return ResponseEntity.ok(lista);
+    }
+
     @PostMapping("/nuevo")
     public ResponseEntity<?> registrar(@RequestBody CertificadoDTO dto) {
         Optional<Usuario> usuario = uS.listId(dto.getIdUsuario());

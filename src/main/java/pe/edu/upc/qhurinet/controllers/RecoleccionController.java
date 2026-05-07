@@ -5,7 +5,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.upc.qhurinet.dtos.ActividadDetalleDTO;
+import pe.edu.upc.qhurinet.dtos.DisponibilidadRecoleccionDTO;
+import pe.edu.upc.qhurinet.dtos.HistorialRecoleccionDTO;
+import pe.edu.upc.qhurinet.dtos.IncidenciaUsuarioDTO;
+import pe.edu.upc.qhurinet.dtos.PromedioRecolectorDTO;
 import pe.edu.upc.qhurinet.dtos.RecoleccionDTO;
+import pe.edu.upc.qhurinet.dtos.RecoleccionPendienteDTO;
+import pe.edu.upc.qhurinet.dtos.RecoleccionRangoDTO;
 import pe.edu.upc.qhurinet.entities.Publicacion;
 import pe.edu.upc.qhurinet.entities.Recoleccion;
 import pe.edu.upc.qhurinet.entities.Usuario;
@@ -13,6 +20,9 @@ import pe.edu.upc.qhurinet.servicesinterfaces.IPublicacionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IRecoleccionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -149,5 +159,230 @@ public class RecoleccionController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Recoleccion no encontrada");
         }
+    }
+
+    //Historial completo de un usuario por ID
+    @GetMapping("/historial/{idUsuario}")
+    public ResponseEntity<?> historialUsuario(@PathVariable UUID idUsuario,
+                                              @RequestParam(value = "fechaIni", required = false) LocalDate fechaIni,
+                                              @RequestParam(value = "fechaFin", required = false) LocalDate fechaFin,
+                                              @RequestParam(value = "estado", required = false) String estado) {
+        List<Object[]> lista = rS.historialUsuario(idUsuario, fechaIni, fechaFin, estado);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<HistorialRecoleccionDTO> respuesta = new ArrayList<>();
+
+        for (Object[] fila : lista) {
+            HistorialRecoleccionDTO dto = new HistorialRecoleccionDTO();
+            dto.setId((UUID) fila[0]);
+            dto.setFechaProgramada((LocalDateTime) fila[1]);
+            dto.setEstado((String) fila[2]);
+            dto.setTituloPublicacion((String) fila[3]);
+            dto.setRolUsuario((String) fila[4]);
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/promedio-recolector/{idRecolector}")
+    public ResponseEntity<?> promedioRecolector(@PathVariable UUID idRecolector) {
+        List<Object[]> lista = rS.promedioCalificacionRecolector(idRecolector);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        Object[] fila = lista.get(0);
+
+        PromedioRecolectorDTO dto = new PromedioRecolectorDTO();
+        dto.setIdRecolector((UUID) fila[0]);
+        dto.setNombreRecolector((String) fila[1]);
+        dto.setPuntuacionPromedio(((Number) fila[2]).doubleValue());
+        dto.setTotalRecolecciones(((Number) fila[3]).longValue());
+
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/rango")
+    public ResponseEntity<?> recoleccionesPorRango(@RequestParam("fechaIni") LocalDate fechaIni,
+                                                   @RequestParam("fechaFin") LocalDate fechaFin,
+                                                   @RequestParam(value = "estado", required = false) String estado) {
+        List<Object[]> lista = rS.recoleccionesPorRangoYEstado(fechaIni, fechaFin, estado);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<RecoleccionRangoDTO> respuesta = new ArrayList<>();
+
+        for (Object[] fila : lista) {
+            RecoleccionRangoDTO dto = new RecoleccionRangoDTO();
+            dto.setId((UUID) fila[0]);
+            dto.setFechaProgramada((LocalDateTime) fila[1]);
+            dto.setFechaCompletada((LocalDateTime) fila[2]);
+            dto.setEstado((String) fila[3]);
+            dto.setTituloPublicacion((String) fila[4]);
+            dto.setNombreRecolector((String) fila[5]);
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/disponibilidad")
+    public ResponseEntity<?> disponibilidadPorFecha(@RequestParam("fecha") LocalDate fecha) {
+        List<Object[]> lista = rS.disponibilidadPorFecha(fecha);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<DisponibilidadRecoleccionDTO> respuesta = new ArrayList<>();
+        for (Object[] fila : lista) {
+            DisponibilidadRecoleccionDTO dto = new DisponibilidadRecoleccionDTO();
+            dto.setIdRecoleccion(toUuid(fila[0]));
+            dto.setFechaProgramada(toLocalDateTime(fila[1]));
+            dto.setEstado((String) fila[2]);
+            dto.setPrioritaria(toBoolean(fila[3]));
+            dto.setIdPublicacion(toUuid(fila[4]));
+            dto.setTituloPublicacion((String) fila[5]);
+            dto.setIdRecolector(toUuid(fila[6]));
+            dto.setNombreRecolector((String) fila[7]);
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/recolector/{idRecolector}/pendientes")
+    public ResponseEntity<?> recoleccionesPendientesRecolector(@PathVariable UUID idRecolector) {
+        List<Object[]> lista = rS.recoleccionesPendientesRecolector(idRecolector);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<RecoleccionPendienteDTO> respuesta = new ArrayList<>();
+        for (Object[] fila : lista) {
+            RecoleccionPendienteDTO dto = new RecoleccionPendienteDTO();
+            dto.setIdRecoleccion(toUuid(fila[0]));
+            dto.setIdPublicacion(toUuid(fila[1]));
+            dto.setTituloPublicacion((String) fila[2]);
+            dto.setDireccionReferencia((String) fila[3]);
+            dto.setLatitud(toDouble(fila[4]));
+            dto.setLongitud(toDouble(fila[5]));
+            dto.setFechaProgramada(toLocalDateTime(fila[6]));
+            dto.setPrioritaria(toBoolean(fila[7]));
+            dto.setEstado((String) fila[8]);
+            dto.setNombreEmisor((String) fila[9]);
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/incidencias/usuario/{idUsuario}")
+    public ResponseEntity<?> incidenciasUsuario(@PathVariable UUID idUsuario) {
+        List<Object[]> lista = rS.incidenciasUsuario(idUsuario);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<IncidenciaUsuarioDTO> respuesta = new ArrayList<>();
+        for (Object[] fila : lista) {
+            IncidenciaUsuarioDTO dto = new IncidenciaUsuarioDTO();
+            dto.setIdRecoleccion(toUuid(fila[0]));
+            dto.setIdPublicacion(toUuid(fila[1]));
+            dto.setTituloPublicacion((String) fila[2]);
+            dto.setIncidenciaDescripcion((String) fila[3]);
+            dto.setIncidenciaEstado((String) fila[4]);
+            dto.setIncidenciaEvidenciaUrl((String) fila[5]);
+            dto.setEstadoRecoleccion((String) fila[6]);
+            dto.setFechaProgramada(toLocalDateTime(fila[7]));
+            dto.setIdRecolector(toUuid(fila[8]));
+            dto.setNombreRecolector((String) fila[9]);
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/actividades-detalle")
+    public ResponseEntity<?> actividadesDetalle(@RequestParam("idUsuario") UUID idUsuario,
+                                                @RequestParam(value = "fechaIni", required = false) LocalDate fechaIni,
+                                                @RequestParam(value = "fechaFin", required = false) LocalDate fechaFin,
+                                                @RequestParam(value = "estado", required = false) String estado) {
+        List<Object[]> lista = rS.actividadesDetalle(idUsuario, fechaIni, fechaFin, estado);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<ActividadDetalleDTO> respuesta = new ArrayList<>();
+        for (Object[] fila : lista) {
+            ActividadDetalleDTO dto = new ActividadDetalleDTO();
+            dto.setIdRecoleccion(toUuid(fila[0]));
+            dto.setFechaProgramada(toLocalDateTime(fila[1]));
+            dto.setFechaCompletada(toLocalDateTime(fila[2]));
+            dto.setEstado((String) fila[3]);
+            dto.setIdPublicacion(toUuid(fila[4]));
+            dto.setTituloPublicacion((String) fila[5]);
+            dto.setMaterial((String) fila[6]);
+            dto.setCantidad(toDouble(fila[7]));
+            dto.setUnidad((String) fila[8]);
+            dto.setRolUsuario((String) fila[9]);
+            dto.setIdContraparte(toUuid(fila[10]));
+            dto.setNombreContraparte((String) fila[11]);
+            dto.setTieneIncidencia(toBoolean(fila[12]));
+            dto.setIncidenciaEstado((String) fila[13]);
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    private UUID toUuid(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof UUID uuid) {
+            return uuid;
+        }
+        return UUID.fromString(value.toString());
+    }
+
+    private Double toDouble(Object value) {
+        return value == null ? null : ((Number) value).doubleValue();
+    }
+
+    private Boolean toBoolean(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        return Boolean.parseBoolean(value.toString());
+    }
+
+    private LocalDateTime toLocalDateTime(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime;
+        }
+        if (value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        return LocalDateTime.parse(value.toString().replace(" ", "T"));
     }
 }
