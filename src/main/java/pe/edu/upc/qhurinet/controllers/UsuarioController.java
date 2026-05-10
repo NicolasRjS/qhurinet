@@ -27,6 +27,7 @@ import pe.edu.upc.qhurinet.servicesinterfaces.ITransaccionPuntosService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -362,7 +363,7 @@ public class UsuarioController {
         List<UsuarioRankingDTO> respuesta = new ArrayList<>();
         for (Object[] fila : lista) {
             UsuarioRankingDTO dto = new UsuarioRankingDTO();
-            dto.setIdUsuario((UUID) fila[0]);
+            dto.setIdUsuario(toUuid(fila[0]));
             dto.setNombre((String) fila[1]);
             dto.setPuntosTotales(((Number) fila[2]).intValue());
             dto.setNivelParticipacion((String) fila[3]);
@@ -499,6 +500,10 @@ public class UsuarioController {
         }
         if (value instanceof UUID uuid) {
             return uuid;
+        }
+        if (value instanceof byte[] bytes && bytes.length == 16) {
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            return new UUID(buffer.getLong(), buffer.getLong());
         }
         return UUID.fromString(value.toString());
     }

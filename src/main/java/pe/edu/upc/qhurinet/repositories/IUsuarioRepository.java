@@ -24,7 +24,7 @@ public interface IUsuarioRepository extends JpaRepository<Usuario, UUID> {
         INNER JOIN publicacion_material pm ON p.id = pm.id_publicacion
         WHERE r.estado = 'completada'
         AND (r.id_recolector = :idUsuario OR p.id_usuario = :idUsuario)
-        AND r.fecha_completada >= (CURRENT_DATE - INTERVAL '6 months')
+        AND r.fecha_completada >= (CURRENT_DATE - INTERVAL '6' MONTH)
         GROUP BY EXTRACT(YEAR FROM r.fecha_completada),
                  EXTRACT(MONTH FROM r.fecha_completada),
                  TO_CHAR(r.fecha_completada, 'YYYY-MM')
