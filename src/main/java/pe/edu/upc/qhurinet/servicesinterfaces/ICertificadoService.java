@@ -12,4 +12,5 @@ public interface ICertificadoService {
     public Optional<Certificado> listId(UUID id);
     public void update(Certificado c);
     public void delete(UUID id);
+    List<Certificado> certificadosPorDificultad(String nivel);
 }

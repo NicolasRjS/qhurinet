@@ -4,6 +4,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.CalificacionDTO;
 import pe.edu.upc.qhurinet.entities.Calificacion;
@@ -31,6 +32,7 @@ public class CalificacionController {
     private IUsuarioService usuarioService;
 
     @GetMapping("/lista")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<CalificacionDTO>> listar() {
         ModelMapper m = new ModelMapper();
 
@@ -52,6 +54,7 @@ public class CalificacionController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("@securityPermissionService.canCreateCalificacion(#dto)")
     public ResponseEntity<?> registrar(@RequestBody CalificacionDTO dto) {
         Optional<Recoleccion> recoleccion = recoleccionService.listId(dto.getIdRecoleccion());
 
@@ -80,6 +83,7 @@ public class CalificacionController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isCalificacionParticipant(#id)")
     public ResponseEntity<?> buscarPorId(@PathVariable UUID id) {
         ModelMapper m = new ModelMapper();
         Optional<Calificacion> cal = cS.listId(id);
@@ -96,6 +100,7 @@ public class CalificacionController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("@securityPermissionService.isCalificacionParticipant(#dto.id)")
     public ResponseEntity<String> actualizar(@RequestBody CalificacionDTO dto) {
         Optional<Calificacion> existente = cS.listId(dto.getId());
 
@@ -130,6 +135,7 @@ public class CalificacionController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isCalificacionParticipant(#id)")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<Calificacion> calificacion = cS.listId(id);
 

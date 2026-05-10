@@ -13,6 +13,7 @@ public class UsuarioDTO {
     private String telefono;
     private String fotoUrl;
     private String descripcion;
+    private String descripcionImagenesJson;
     private List<String> roles;
     private String tipoCuenta;
     private String proveedorAuth;
@@ -85,6 +86,14 @@ public class UsuarioDTO {
 
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
+    }
+
+    public String getDescripcionImagenesJson() {
+        return descripcionImagenesJson;
+    }
+
+    public void setDescripcionImagenesJson(String descripcionImagenesJson) {
+        this.descripcionImagenesJson = descripcionImagenesJson;
     }
 
     public List<String> getRoles() {

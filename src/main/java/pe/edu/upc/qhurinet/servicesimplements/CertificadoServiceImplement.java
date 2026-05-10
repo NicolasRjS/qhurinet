@@ -39,4 +39,9 @@ public class CertificadoServiceImplement implements ICertificadoService {
     public void delete(UUID id) {
         cR.deleteById(id);
     }
+
+    @Override
+    public List<Certificado> certificadosPorDificultad(String nivel) {
+        return cR.certificadosPorDificultad(nivel);
+    }
 }

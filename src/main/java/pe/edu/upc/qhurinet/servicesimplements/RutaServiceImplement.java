@@ -39,4 +39,14 @@ public class RutaServiceImplement implements IRutaService {
     public void delete(UUID id) {
         rR.deleteById(id);
     }
+
+    @Override
+    public List<Ruta> listByUsuario(UUID idUsuario) {
+        return rR.findByUsuarioIdOrderByCreatedAtDesc(idUsuario);
+    }
+
+    @Override
+    public List<Ruta> listFavoritasByUsuario(UUID idUsuario) {
+        return rR.findByUsuarioIdAndFavoritaTrueOrderByCreatedAtDesc(idUsuario);
+    }
 }

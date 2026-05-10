@@ -7,8 +7,10 @@ import pe.edu.upc.qhurinet.entities.PublicacionMaterialId;
 import pe.edu.upc.qhurinet.repositories.IPublicacionMaterialRepository;
 import pe.edu.upc.qhurinet.servicesinterfaces.IPublicacionMaterialService;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class PublicacionMaterialServiceImplement implements IPublicacionMaterialService {
@@ -38,5 +40,15 @@ public class PublicacionMaterialServiceImplement implements IPublicacionMaterial
     @Override
     public void delete(PublicacionMaterialId id) {
         pR.deleteById(id);
+    }
+
+    @Override
+    public List<PublicacionMaterial> listByPublicacion(UUID idPublicacion) {
+        return pR.findByPublicacionId(idPublicacion);
+    }
+
+    @Override
+    public BigDecimal puntosPorPublicacion(UUID idPublicacion) {
+        return pR.puntosPorPublicacion(idPublicacion);
     }
 }

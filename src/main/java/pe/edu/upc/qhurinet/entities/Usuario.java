@@ -49,6 +49,9 @@ public class Usuario {
     @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
 
+    @Column(name = "descripcion_imagenes_json", columnDefinition = "TEXT")
+    private String descripcionImagenesJson;
+
     @Column(name = "tipo_cuenta", length = 30, nullable = false)
     private String tipoCuenta;
 
@@ -79,7 +82,7 @@ public class Usuario {
     public Usuario() {
     }
 
-    public Usuario(UUID id, String nombre, String email, String username, String passwordHash, String telefono, String fotoUrl, String descripcion, String tipoCuenta, String proveedorAuth, Boolean disponible, Boolean verificado, Integer puntosTotales, String nivelParticipacion, LocalDateTime createdAt, LocalDateTime updatedAt, List<Role> roles) {
+    public Usuario(UUID id, String nombre, String email, String username, String passwordHash, String telefono, String fotoUrl, String descripcion, String descripcionImagenesJson, String tipoCuenta, String proveedorAuth, Boolean disponible, Boolean verificado, Integer puntosTotales, String nivelParticipacion, LocalDateTime createdAt, LocalDateTime updatedAt, List<Role> roles) {
         this.id = id;
         this.nombre = nombre;
         this.email = email;
@@ -88,6 +91,7 @@ public class Usuario {
         this.telefono = telefono;
         this.fotoUrl = fotoUrl;
         this.descripcion = descripcion;
+        this.descripcionImagenesJson = descripcionImagenesJson;
         this.tipoCuenta = tipoCuenta;
         this.proveedorAuth = proveedorAuth;
         this.disponible = disponible;
@@ -188,6 +192,14 @@ public class Usuario {
 
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
+    }
+
+    public String getDescripcionImagenesJson() {
+        return descripcionImagenesJson;
+    }
+
+    public void setDescripcionImagenesJson(String descripcionImagenesJson) {
+        this.descripcionImagenesJson = descripcionImagenesJson;
     }
 
     public String getTipoCuenta() {

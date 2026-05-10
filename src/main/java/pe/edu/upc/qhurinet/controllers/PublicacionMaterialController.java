@@ -4,6 +4,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.PublicacionMaterialDTO;
 import pe.edu.upc.qhurinet.entities.Material;
@@ -32,6 +33,7 @@ public class PublicacionMaterialController {
     private IMaterialService materialService;
 
     @GetMapping("/lista")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<PublicacionMaterialDTO>> listar() {
         ModelMapper m = new ModelMapper();
 
@@ -53,6 +55,7 @@ public class PublicacionMaterialController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("@securityPermissionService.isPublicacionOwner(#dto.idPublicacion)")
     public ResponseEntity<?> registrar(@RequestBody PublicacionMaterialDTO dto) {
         Optional<Publicacion> publicacion = publicacionService.listId(dto.getIdPublicacion());
 
@@ -100,6 +103,7 @@ public class PublicacionMaterialController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("@securityPermissionService.isPublicacionOwner(#dto.idPublicacion)")
     public ResponseEntity<String> actualizar(@RequestBody PublicacionMaterialDTO dto) {
         PublicacionMaterialId id = new PublicacionMaterialId(dto.getIdPublicacion(), dto.getIdMaterial());
         Optional<PublicacionMaterial> existente = pS.listId(id);
@@ -136,6 +140,7 @@ public class PublicacionMaterialController {
     }
 
     @DeleteMapping("/{idPublicacion}/{idMaterial}")
+    @PreAuthorize("@securityPermissionService.isPublicacionOwner(#idPublicacion)")
     public ResponseEntity<String> eliminar(@PathVariable UUID idPublicacion, @PathVariable int idMaterial) {
         PublicacionMaterialId id = new PublicacionMaterialId(idPublicacion, idMaterial);
         Optional<PublicacionMaterial> publicacionMaterial = pS.listId(id);

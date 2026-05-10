@@ -2,6 +2,7 @@ package pe.edu.upc.qhurinet.servicesinterfaces;
 
 import pe.edu.upc.qhurinet.entities.TransaccionPuntos;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,5 +13,9 @@ public interface ITransaccionPuntosService {
     public Optional<TransaccionPuntos> listId(UUID id);
     public void update(TransaccionPuntos t);
     public void delete(UUID id);
+    List<TransaccionPuntos> listByUsuarioAndReferenciaTipo(UUID idUsuario, String referenciaTipo);
+    boolean existsByUsuarioAndReferenciaTipoBetween(UUID idUsuario, String referenciaTipo, LocalDateTime inicio, LocalDateTime fin);
+    boolean existsByUsuarioAndReferenciaTipoAndMotivo(UUID idUsuario, String referenciaTipo, String motivo);
     List<Object[]> totalPuntosGanadosPorMes(UUID idUsuario, String mes);
+    List<Object[]> historialPuntosConSaldo(UUID idUsuario);
 }
