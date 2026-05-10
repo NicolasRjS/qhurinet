@@ -4,14 +4,19 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.IncentivoDisponibleDTO;
 import pe.edu.upc.qhurinet.dtos.IncentivoDTO;
 import pe.edu.upc.qhurinet.entities.Incentivo;
+import pe.edu.upc.qhurinet.entities.Material;
 import pe.edu.upc.qhurinet.servicesinterfaces.IIncentivoService;
+import pe.edu.upc.qhurinet.servicesinterfaces.IMaterialService;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -21,6 +26,9 @@ import java.util.stream.Collectors;
 public class IncentivoController {
     @Autowired
     private IIncentivoService iS;
+
+    @Autowired
+    private IMaterialService materialService;
 
     @GetMapping("/lista")
     public ResponseEntity<List<IncentivoDTO>> listar() {
@@ -39,6 +47,7 @@ public class IncentivoController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> registrar(@RequestBody IncentivoDTO dto) {
         ModelMapper m = new ModelMapper();
         Incentivo i = m.map(dto, Incentivo.class);
@@ -62,6 +71,7 @@ public class IncentivoController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> actualizar(@RequestBody IncentivoDTO dto) {
         Optional<Incentivo> existente = iS.listId(dto.getId());
 
@@ -88,6 +98,7 @@ public class IncentivoController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<Incentivo> incentivo = iS.listId(id);
 
@@ -100,7 +111,34 @@ public class IncentivoController {
         }
     }
 
+    @GetMapping("/valores-puntos")
+    public ResponseEntity<?> valoresPuntos() {
+        List<Map<String, Object>> valores = new ArrayList<>();
+
+        for (Material material : materialService.list()) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("tipo", "material");
+            item.put("accion", "Reciclar " + material.getNombre());
+            item.put("categoria", material.getCategoria());
+            item.put("valor", material.getPuntosPorKg());
+            item.put("unidad", "pts/kg");
+            valores.add(item);
+        }
+
+        valores.add(valorAccion("recoleccion_completada", "Completar una recoleccion", "segun material y kg", "calculado"));
+        valores.add(valorAccion("recompensa_diaria", "Reclamar recompensa diaria", 10, "pts"));
+        valores.add(valorAccion("desafio_completado", "Reclamar desafio completado", 50, "pts"));
+        valores.add(valorAccion("ascenso_nivel", "Ascenso de nivel", 10, "pts bonus"));
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("actualizadoAl", java.time.YearMonth.now().toString());
+        response.put("mensaje", "Puntajes actualizados al mes en curso");
+        response.put("valores", valores);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/disponibles/{idUsuario}")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
     public ResponseEntity<?> incentivosDisponibles(@PathVariable UUID idUsuario) {
         List<Object[]> lista = iS.incentivosDisponiblesUsuario(idUsuario);
 
@@ -152,5 +190,14 @@ public class IncentivoController {
             return number.intValue() != 0;
         }
         return Boolean.parseBoolean(value.toString());
+    }
+
+    private Map<String, Object> valorAccion(String tipo, String accion, Object valor, String unidad) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("tipo", tipo);
+        item.put("accion", accion);
+        item.put("valor", valor);
+        item.put("unidad", unidad);
+        return item;
     }
 }

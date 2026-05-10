@@ -47,6 +47,11 @@ public class UsuarioServiceImplement implements IUsuarioService {
     }
 
     @Override
+    public List<Object[]> materialesMesActual(UUID idUsuario) {
+        return uR.materialesMesActual(idUsuario);
+    }
+
+    @Override
     public List<Object[]> rankingUsuariosPorPuntos() {
         return uR.rankingUsuariosPorPuntos();
     }

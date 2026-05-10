@@ -4,6 +4,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.CertificadoDTO;
 import pe.edu.upc.qhurinet.entities.Certificado;
@@ -66,6 +67,7 @@ public class CertificadoController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> registrar(@RequestBody CertificadoDTO dto) {
         Optional<Usuario> usuario = uS.listId(dto.getIdUsuario());
 
@@ -100,6 +102,7 @@ public class CertificadoController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> actualizar(@RequestBody CertificadoDTO dto) {
         Optional<Certificado> existente = cS.listId(dto.getId());
 
@@ -132,6 +135,7 @@ public class CertificadoController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<Certificado> certificado = cS.listId(id);
 

@@ -5,10 +5,22 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pe.edu.upc.qhurinet.entities.TransaccionPuntos;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 public interface ITransaccionPuntosRepository extends JpaRepository<TransaccionPuntos, UUID> {
+    List<TransaccionPuntos> findByUsuario_IdAndReferenciaTipoOrderByCreatedAtDesc(UUID idUsuario,
+                                                                                  String referenciaTipo);
+
+    boolean existsByUsuario_IdAndReferenciaTipoAndCreatedAtBetween(UUID idUsuario,
+                                                                   String referenciaTipo,
+                                                                   LocalDateTime inicio,
+                                                                   LocalDateTime fin);
+
+    boolean existsByUsuario_IdAndReferenciaTipoAndMotivo(UUID idUsuario,
+                                                         String referenciaTipo,
+                                                         String motivo);
 
     @Query(value = """
             SELECT u.id, u.nombre, COALESCE(SUM(tp.puntos), 0) AS total_puntos_mes

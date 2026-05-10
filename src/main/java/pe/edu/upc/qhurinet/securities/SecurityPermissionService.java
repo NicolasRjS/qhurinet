@@ -5,17 +5,25 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import pe.edu.upc.qhurinet.dtos.MetodoPagoDTO;
+import pe.edu.upc.qhurinet.dtos.CalificacionDTO;
+import pe.edu.upc.qhurinet.dtos.MensajeChatDTO;
 import pe.edu.upc.qhurinet.dtos.PublicacionDTO;
+import pe.edu.upc.qhurinet.dtos.ReclamoDTO;
 import pe.edu.upc.qhurinet.dtos.RecoleccionDTO;
 import pe.edu.upc.qhurinet.dtos.RutaDTO;
 import pe.edu.upc.qhurinet.dtos.UsuarioDTO;
 import pe.edu.upc.qhurinet.entities.Usuario;
 import pe.edu.upc.qhurinet.repositories.IDocumentoVerificacionRepository;
+import pe.edu.upc.qhurinet.repositories.ICalificacionRepository;
+import pe.edu.upc.qhurinet.repositories.IMensajeChatRepository;
 import pe.edu.upc.qhurinet.repositories.IMetodoPagoRepository;
 import pe.edu.upc.qhurinet.repositories.INotificacionRepository;
 import pe.edu.upc.qhurinet.repositories.IPublicacionRepository;
+import pe.edu.upc.qhurinet.repositories.IReclamoRepository;
 import pe.edu.upc.qhurinet.repositories.IRecoleccionRepository;
 import pe.edu.upc.qhurinet.repositories.IRutaRepository;
+import pe.edu.upc.qhurinet.repositories.ITransaccionPuntosRepository;
+import pe.edu.upc.qhurinet.repositories.IUsuarioIncentivoRepository;
 import pe.edu.upc.qhurinet.repositories.IUsuarioRepository;
 
 import java.util.Optional;
@@ -43,6 +51,21 @@ public class SecurityPermissionService {
 
     @Autowired
     private INotificacionRepository notificacionRepository;
+
+    @Autowired
+    private IUsuarioIncentivoRepository usuarioIncentivoRepository;
+
+    @Autowired
+    private ITransaccionPuntosRepository transaccionPuntosRepository;
+
+    @Autowired
+    private ICalificacionRepository calificacionRepository;
+
+    @Autowired
+    private IMensajeChatRepository mensajeChatRepository;
+
+    @Autowired
+    private IReclamoRepository reclamoRepository;
 
     public boolean isAdmin() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -179,6 +202,89 @@ public class SecurityPermissionService {
         return currentUser()
                 .flatMap(usuario -> notificacionRepository.findById(idNotificacion)
                         .map(notificacion -> notificacion.getUsuario().getId().equals(usuario.getId())))
+                .orElse(false);
+    }
+
+    public boolean isUsuarioIncentivoOwner(UUID idUsuarioIncentivo) {
+        if (idUsuarioIncentivo == null) {
+            return false;
+        }
+        if (isAdmin()) {
+            return true;
+        }
+        return currentUser()
+                .flatMap(usuario -> usuarioIncentivoRepository.findById(idUsuarioIncentivo)
+                        .map(usuarioIncentivo -> usuarioIncentivo.getUsuario().getId().equals(usuario.getId())))
+                .orElse(false);
+    }
+
+    public boolean isTransaccionPuntosOwner(UUID idTransaccionPuntos) {
+        if (idTransaccionPuntos == null) {
+            return false;
+        }
+        if (isAdmin()) {
+            return true;
+        }
+        return currentUser()
+                .flatMap(usuario -> transaccionPuntosRepository.findById(idTransaccionPuntos)
+                        .map(transaccion -> transaccion.getUsuario().getId().equals(usuario.getId())))
+                .orElse(false);
+    }
+
+    public boolean canCreateCalificacion(CalificacionDTO dto) {
+        return dto != null
+                && (isAdmin() || (isSelf(dto.getIdAutor()) && isRecoleccionParticipant(dto.getIdRecoleccion())));
+    }
+
+    public boolean isCalificacionParticipant(UUID idCalificacion) {
+        if (idCalificacion == null) {
+            return false;
+        }
+        if (isAdmin()) {
+            return true;
+        }
+        return currentUser()
+                .flatMap(usuario -> calificacionRepository.findById(idCalificacion)
+                        .map(calificacion -> calificacion.getAutor().getId().equals(usuario.getId())
+                                || calificacion.getRecoleccion().getRecolector().getId().equals(usuario.getId())
+                                || calificacion.getRecoleccion().getPublicacion().getUsuario().getId().equals(usuario.getId())))
+                .orElse(false);
+    }
+
+    public boolean canCreateMensajeChat(MensajeChatDTO dto) {
+        return dto != null
+                && (isAdmin() || (isSelf(dto.getIdRemitente()) && isRecoleccionParticipant(dto.getIdRecoleccion())));
+    }
+
+    public boolean isMensajeChatParticipant(UUID idMensaje) {
+        if (idMensaje == null) {
+            return false;
+        }
+        if (isAdmin()) {
+            return true;
+        }
+        return currentUser()
+                .flatMap(usuario -> mensajeChatRepository.findById(idMensaje)
+                        .map(mensaje -> mensaje.getRemitente().getId().equals(usuario.getId())
+                                || mensaje.getRecoleccion().getRecolector().getId().equals(usuario.getId())
+                                || mensaje.getRecoleccion().getPublicacion().getUsuario().getId().equals(usuario.getId())))
+                .orElse(false);
+    }
+
+    public boolean canCreateReclamo(ReclamoDTO dto) {
+        return dto != null && canCreateForUser(dto.getIdUsuario());
+    }
+
+    public boolean isReclamoOwner(UUID idReclamo) {
+        if (idReclamo == null) {
+            return false;
+        }
+        if (isAdmin()) {
+            return true;
+        }
+        return currentUser()
+                .flatMap(usuario -> reclamoRepository.findById(idReclamo)
+                        .map(reclamo -> reclamo.getUsuario().getId().equals(usuario.getId())))
                 .orElse(false);
     }
 

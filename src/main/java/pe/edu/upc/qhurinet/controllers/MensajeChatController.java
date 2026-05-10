@@ -4,6 +4,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.MensajeChatDTO;
 import pe.edu.upc.qhurinet.entities.MensajeChat;
@@ -31,6 +32,7 @@ public class MensajeChatController {
     private IUsuarioService usuarioService;
 
     @GetMapping("/lista")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<MensajeChatDTO>> listar() {
         ModelMapper m = new ModelMapper();
 
@@ -52,6 +54,7 @@ public class MensajeChatController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("@securityPermissionService.canCreateMensajeChat(#dto)")
     public ResponseEntity<?> registrar(@RequestBody MensajeChatDTO dto) {
         Optional<Recoleccion> recoleccion = recoleccionService.listId(dto.getIdRecoleccion());
 
@@ -80,6 +83,7 @@ public class MensajeChatController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isMensajeChatParticipant(#id)")
     public ResponseEntity<?> buscarPorId(@PathVariable UUID id) {
         ModelMapper m = new ModelMapper();
         Optional<MensajeChat> mensaje = mS.listId(id);
@@ -96,6 +100,7 @@ public class MensajeChatController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("@securityPermissionService.isMensajeChatParticipant(#dto.id)")
     public ResponseEntity<String> actualizar(@RequestBody MensajeChatDTO dto) {
         Optional<MensajeChat> existente = mS.listId(dto.getId());
 
@@ -130,6 +135,7 @@ public class MensajeChatController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isMensajeChatParticipant(#id)")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<MensajeChat> mensaje = mS.listId(id);
 

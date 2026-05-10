@@ -1,5 +1,7 @@
 package pe.edu.upc.qhurinet.controllers;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -19,6 +21,7 @@ import pe.edu.upc.qhurinet.dtos.UsuarioDTO;
 import pe.edu.upc.qhurinet.dtos.UsuarioRankingDTO;
 import pe.edu.upc.qhurinet.entities.Role;
 import pe.edu.upc.qhurinet.entities.Usuario;
+import pe.edu.upc.qhurinet.servicesimplements.NivelParticipacionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IArchivoStorageService;
 import pe.edu.upc.qhurinet.servicesinterfaces.ITransaccionPuntosService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
@@ -27,7 +30,9 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -46,6 +51,11 @@ public class UsuarioController {
 
     @Autowired
     private IArchivoStorageService archivoStorageService;
+
+    @Autowired
+    private NivelParticipacionService nivelParticipacionService;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @GetMapping("/lista")
     @PreAuthorize("hasAuthority('ADMIN')")
@@ -138,6 +148,74 @@ public class UsuarioController {
         }
     }
 
+    @DeleteMapping("/{id}/foto")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#id)")
+    public ResponseEntity<?> eliminarFoto(@PathVariable UUID id) {
+        Optional<Usuario> existente = uS.listId(id);
+        if (existente.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        Usuario usuario = existente.get();
+        usuario.setFotoUrl(null);
+        uS.update(usuario);
+        return ResponseEntity.ok(toDto(usuario));
+    }
+
+    @PostMapping(value = "/{id}/descripcion-imagen", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#id)")
+    public ResponseEntity<?> subirImagenDescripcion(@PathVariable UUID id,
+                                                    @RequestParam("file") MultipartFile file) {
+        Optional<Usuario> existente = uS.listId(id);
+        if (existente.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        try {
+            var archivo = archivoStorageService.guardarImagen(file, "usuarios-descripcion");
+            Usuario usuario = existente.get();
+            agregarImagenDescripcion(usuario, archivo.getUrl());
+            uS.update(usuario);
+            return ResponseEntity.status(HttpStatus.CREATED).body(toDto(usuario));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("No se pudo guardar el archivo");
+        }
+    }
+
+    @PatchMapping("/{id}/descripcion-imagenes")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#id)")
+    public ResponseEntity<?> agregarImagenDescripcionUrl(@PathVariable UUID id,
+                                                         @RequestBody ArchivoUrlDTO dto) {
+        Optional<Usuario> existente = uS.listId(id);
+        if (existente.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        if (dto == null || dto.getUrl() == null || dto.getUrl().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("URL de imagen obligatoria");
+        }
+
+        Usuario usuario = existente.get();
+        agregarImagenDescripcion(usuario, dto.getUrl().trim());
+        uS.update(usuario);
+        return ResponseEntity.ok(toDto(usuario));
+    }
+
+    @DeleteMapping("/{id}/descripcion-imagenes")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#id)")
+    public ResponseEntity<?> eliminarImagenesDescripcion(@PathVariable UUID id) {
+        Optional<Usuario> existente = uS.listId(id);
+        if (existente.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        Usuario usuario = existente.get();
+        usuario.setDescripcionImagenesJson("[]");
+        uS.update(usuario);
+        return ResponseEntity.ok(toDto(usuario));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
@@ -161,6 +239,7 @@ public class UsuarioController {
         dto.setTelefono(usuario.getTelefono());
         dto.setFotoUrl(usuario.getFotoUrl());
         dto.setDescripcion(usuario.getDescripcion());
+        dto.setDescripcionImagenesJson(usuario.getDescripcionImagenesJson());
         dto.setRoles(usuario.getRoles()
                 .stream()
                 .map(Role::getRol)
@@ -184,6 +263,7 @@ public class UsuarioController {
         usuario.setTelefono(dto.getTelefono());
         usuario.setFotoUrl(dto.getFotoUrl());
         usuario.setDescripcion(dto.getDescripcion());
+        usuario.setDescripcionImagenesJson(dto.getDescripcionImagenesJson());
         usuario.setTipoCuenta(dto.getTipoCuenta());
         usuario.setProveedorAuth(dto.getProveedorAuth());
         usuario.setDisponible(dto.getDisponible());
@@ -232,6 +312,27 @@ public class UsuarioController {
             dto.setMes((String) fila[0]);
             dto.setTotalKg(((Number) fila[1]).doubleValue());
             respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/{idUsuario}/estadisticas/materiales-mes-actual")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
+    public ResponseEntity<?> materialesMesActual(@PathVariable UUID idUsuario) {
+        List<Object[]> lista = uS.materialesMesActual(idUsuario);
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<Map<String, Object>> respuesta = new ArrayList<>();
+        for (Object[] fila : lista) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("material", fila[0]);
+            item.put("categoria", fila[1]);
+            item.put("cantidad", toDouble(fila[2]));
+            item.put("unidad", fila[3]);
+            respuesta.add(item);
         }
 
         return ResponseEntity.ok(respuesta);
@@ -332,6 +433,21 @@ public class UsuarioController {
         return ResponseEntity.ok(mapEstadisticasResumen(lista.get(0)));
     }
 
+    @PostMapping("/{idUsuario}/niveles/recalcular")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
+    public ResponseEntity<?> recalcularNivelParticipacion(@PathVariable UUID idUsuario) {
+        Optional<Usuario> usuario = uS.listId(idUsuario);
+        if (usuario.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        boolean ascendido = nivelParticipacionService.actualizarNivelSiCorresponde(usuario.get());
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("ascendido", ascendido);
+        response.put("usuario", toDto(usuario.get()));
+        return ResponseEntity.ok(response);
+    }
+
     private EstadisticasResumenDTO mapEstadisticasResumen(Object[] fila) {
         EstadisticasResumenDTO dto = new EstadisticasResumenDTO();
         dto.setIdUsuario(toUuid(fila[0]));
@@ -423,5 +539,27 @@ public class UsuarioController {
             return timestamp.toLocalDateTime();
         }
         return LocalDateTime.parse(value.toString().replace(" ", "T"));
+    }
+
+    private void agregarImagenDescripcion(Usuario usuario, String url) {
+        List<String> imagenes = descripcionImagenes(usuario);
+        imagenes.add(url);
+        try {
+            usuario.setDescripcionImagenesJson(objectMapper.writeValueAsString(imagenes));
+        } catch (Exception e) {
+            usuario.setDescripcionImagenesJson("[\"" + url.replace("\"", "\\\"") + "\"]");
+        }
+    }
+
+    private List<String> descripcionImagenes(Usuario usuario) {
+        if (usuario.getDescripcionImagenesJson() == null || usuario.getDescripcionImagenesJson().isBlank()) {
+            return new ArrayList<>();
+        }
+        try {
+            return objectMapper.readValue(usuario.getDescripcionImagenesJson(), new TypeReference<List<String>>() {
+            });
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
     }
 }

@@ -33,6 +33,22 @@ public interface IUsuarioRepository extends JpaRepository<Usuario, UUID> {
         """, nativeQuery = true)
     List<Object[]> kgRecicladosPorMes(@Param("idUsuario") UUID idUsuario);
 
+    @Query(value = """
+        SELECT m.nombre, m.categoria, COALESCE(SUM(pm.cantidad), 0) AS total_cantidad, pm.unidad
+        FROM recoleccion r
+        INNER JOIN publicacion p ON r.id_publicacion = p.id
+        INNER JOIN publicacion_material pm ON p.id = pm.id_publicacion
+        INNER JOIN material m ON pm.id_material = m.id
+        WHERE r.estado = 'completada'
+        AND r.fecha_completada IS NOT NULL
+        AND (r.id_recolector = :idUsuario OR p.id_usuario = :idUsuario)
+        AND EXTRACT(YEAR FROM r.fecha_completada) = EXTRACT(YEAR FROM CURRENT_DATE)
+        AND EXTRACT(MONTH FROM r.fecha_completada) = EXTRACT(MONTH FROM CURRENT_DATE)
+        GROUP BY m.nombre, m.categoria, pm.unidad
+        ORDER BY total_cantidad DESC, m.nombre ASC
+        """, nativeQuery = true)
+    List<Object[]> materialesMesActual(@Param("idUsuario") UUID idUsuario);
+
 
     @Query(value = """
         SELECT u.id, u.nombre, u.puntos_totales, u.nivel_participacion

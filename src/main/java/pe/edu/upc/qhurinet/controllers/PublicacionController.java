@@ -19,10 +19,12 @@ import pe.edu.upc.qhurinet.dtos.PublicacionBusquedaDTO;
 import pe.edu.upc.qhurinet.dtos.PublicacionMapaDTO;
 import pe.edu.upc.qhurinet.entities.MapaCache;
 import pe.edu.upc.qhurinet.entities.Publicacion;
+import pe.edu.upc.qhurinet.entities.PublicacionMaterial;
 import pe.edu.upc.qhurinet.entities.Usuario;
 import pe.edu.upc.qhurinet.servicesinterfaces.IArchivoStorageService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IClasificacionMaterialService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IMapaCacheService;
+import pe.edu.upc.qhurinet.servicesinterfaces.IPublicacionMaterialService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IPublicacionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,6 +34,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -53,6 +57,9 @@ public class PublicacionController {
 
     @Autowired
     private IClasificacionMaterialService clasificacionMaterialService;
+
+    @Autowired
+    private IPublicacionMaterialService publicacionMaterialService;
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
@@ -114,6 +121,67 @@ public class PublicacionController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Publicacion no encontrada");
         }
+    }
+
+    @GetMapping("/{id}/detalle-mapa")
+    public ResponseEntity<?> detalleMapa(@PathVariable UUID id) {
+        Optional<Publicacion> pub = pS.listId(id);
+        if (pub.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Publicacion no encontrada");
+        }
+
+        Publicacion publicacion = pub.get();
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("idPublicacion", publicacion.getId());
+        response.put("titulo", publicacion.getTitulo());
+        response.put("estado", publicacion.getEstado());
+        response.put("direccionReferencia", publicacion.getDireccionReferencia());
+        response.put("latitud", publicacion.getLatitud());
+        response.put("longitud", publicacion.getLongitud());
+        response.put("fechaDisponibilidad", publicacion.getFechaDisponibilidad());
+        response.put("observaciones", publicacion.getObservaciones());
+        response.put("imagenesJson", publicacion.getImagenesJson());
+
+        Usuario usuario = publicacion.getUsuario();
+        Map<String, Object> usuarioMap = new LinkedHashMap<>();
+        usuarioMap.put("idUsuario", usuario.getId());
+        usuarioMap.put("nombre", usuario.getNombre());
+        usuarioMap.put("tipoCuenta", usuario.getTipoCuenta());
+        usuarioMap.put("fotoUrl", usuario.getFotoUrl());
+        usuarioMap.put("verificado", usuario.getVerificado());
+        response.put("usuario", usuarioMap);
+
+        List<Map<String, Object>> materiales = new ArrayList<>();
+        List<String> etiquetas = new ArrayList<>();
+        for (PublicacionMaterial pm : publicacionMaterialService.listByPublicacion(id)) {
+            Map<String, Object> material = new LinkedHashMap<>();
+            material.put("idMaterial", pm.getMaterial().getId());
+            material.put("nombre", pm.getMaterial().getNombre());
+            material.put("categoria", pm.getMaterial().getCategoria());
+            material.put("cantidad", pm.getCantidad());
+            material.put("unidad", pm.getUnidad());
+            material.put("puntosPorKg", pm.getMaterial().getPuntosPorKg());
+            materiales.add(material);
+            if (!etiquetas.contains(pm.getMaterial().getCategoria())) {
+                etiquetas.add(pm.getMaterial().getCategoria());
+            }
+        }
+        response.put("materiales", materiales);
+        response.put("etiquetas", etiquetas);
+
+        List<Object[]> perfil = uS.perfilRecolector(usuario.getId());
+        Map<String, Object> calificacion = new LinkedHashMap<>();
+        if (!perfil.isEmpty()) {
+            Object[] fila = perfil.get(0);
+            calificacion.put("puntuacionPromedio", toDouble(fila[10]));
+            calificacion.put("totalValoraciones", toLong(fila[11]));
+        } else {
+            calificacion.put("puntuacionPromedio", 0.0);
+            calificacion.put("totalValoraciones", 0L);
+        }
+        response.put("calificacion", calificacion);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/actualiza")
@@ -349,6 +417,7 @@ public class PublicacionController {
     }
 
     @GetMapping("/usuario/{idUsuario}/historial-materiales")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
     public ResponseEntity<?> historialMaterialesUsuario(@PathVariable UUID idUsuario) {
         List<Object[]> lista = pS.historialMaterialesUsuario(idUsuario);
 
@@ -390,6 +459,10 @@ public class PublicacionController {
 
     private Double toDouble(Object value) {
         return value == null ? null : ((Number) value).doubleValue();
+    }
+
+    private Long toLong(Object value) {
+        return value == null ? null : ((Number) value).longValue();
     }
 
     private PublicacionDTO toPublicacionDto(Publicacion publicacion) {

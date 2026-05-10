@@ -31,6 +31,9 @@ public class RutaOptimaServiceImplement implements IRutaOptimaService {
         if (request == null || request.getPuntos() == null || request.getPuntos().size() < 2) {
             throw new IllegalArgumentException("Se requieren al menos dos puntos");
         }
+        if (request.getPuntos().size() > 10) {
+            throw new IllegalArgumentException("Se permiten entre 2 y 10 puntos");
+        }
 
         Map<String, PuntoRutaDTO> puntos = normalizarPuntos(request.getPuntos());
         Map<String, List<Edge>> graph = construirGrafo(puntos, request.getAristas());

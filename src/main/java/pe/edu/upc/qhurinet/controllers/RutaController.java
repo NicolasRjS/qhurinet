@@ -25,7 +25,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/rutas")
+@RequestMapping({"/api/rutas", "/rutas"})
 public class RutaController {
     @Autowired
     private IRutaService rS;
@@ -185,7 +185,7 @@ public class RutaController {
         return ResponseEntity.ok(toDto(r));
     }
 
-    @PostMapping("/optima")
+    @PostMapping({"/optima", "/calcular"})
     @PreAuthorize("#dto == null or #dto.idUsuario == null or @securityPermissionService.canCreateForUser(#dto.idUsuario)")
     public ResponseEntity<?> calcularRutaOptima(@RequestBody RutaOptimaRequestDTO dto) {
         try {

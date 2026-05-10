@@ -35,6 +35,7 @@ public class DocumentoVerificacionController {
     private IArchivoStorageService archivoStorageService;
 
     @GetMapping("/lista")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<DocumentoVerificacionDTO>> listar() {
         ModelMapper m = new ModelMapper();
 
@@ -75,6 +76,7 @@ public class DocumentoVerificacionController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isDocumentoOwner(#id)")
     public ResponseEntity<?> buscarPorId(@PathVariable UUID id) {
         ModelMapper m = new ModelMapper();
         Optional<DocumentoVerificacion> doc = dS.listId(id);

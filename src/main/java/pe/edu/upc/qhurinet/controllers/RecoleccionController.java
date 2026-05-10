@@ -38,6 +38,7 @@ import pe.edu.upc.qhurinet.entities.Recoleccion;
 import pe.edu.upc.qhurinet.entities.TransaccionPuntos;
 import pe.edu.upc.qhurinet.entities.UbicacionRecolectorHistorial;
 import pe.edu.upc.qhurinet.entities.Usuario;
+import pe.edu.upc.qhurinet.servicesimplements.NivelParticipacionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IPublicacionMaterialService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IPublicacionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.INotificacionService;
@@ -81,6 +82,9 @@ public class RecoleccionController {
 
     @Autowired
     private IUbicacionRecolectorHistorialService ubicacionHistorialService;
+
+    @Autowired
+    private NivelParticipacionService nivelParticipacionService;
 
     @GetMapping("/lista")
     @PreAuthorize("hasAuthority('ADMIN')")
@@ -723,6 +727,7 @@ public class RecoleccionController {
         int saldoActual = usuario.getPuntosTotales() == null ? 0 : usuario.getPuntosTotales();
         usuario.setPuntosTotales(saldoActual + puntos);
         usuarioService.update(usuario);
+        nivelParticipacionService.actualizarNivelSiCorresponde(usuario);
 
         TransaccionPuntos transaccion = new TransaccionPuntos();
         transaccion.setUsuario(usuario);

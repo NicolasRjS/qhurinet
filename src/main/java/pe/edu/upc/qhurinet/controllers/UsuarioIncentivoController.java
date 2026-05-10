@@ -16,16 +16,20 @@ import pe.edu.upc.qhurinet.entities.Notificacion;
 import pe.edu.upc.qhurinet.entities.TransaccionPuntos;
 import pe.edu.upc.qhurinet.entities.Usuario;
 import pe.edu.upc.qhurinet.entities.UsuarioIncentivo;
+import pe.edu.upc.qhurinet.servicesimplements.NivelParticipacionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IIncentivoService;
 import pe.edu.upc.qhurinet.servicesinterfaces.INotificacionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.ITransaccionPuntosService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioIncentivoService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
+import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -33,6 +37,11 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/usuarios-incentivos")
 public class UsuarioIncentivoController {
+    private static final String REFERENCIA_RECOMPENSA_DIARIA = "recompensa_diaria";
+    private static final String REFERENCIA_DESAFIO = "desafio";
+    private static final int PUNTOS_RECOMPENSA_DIARIA = 10;
+    private static final int PUNTOS_DESAFIO_DEFAULT = 50;
+
     @Autowired
     private IUsuarioIncentivoService uS;
 
@@ -48,7 +57,11 @@ public class UsuarioIncentivoController {
     @Autowired
     private INotificacionService notificacionService;
 
+    @Autowired
+    private NivelParticipacionService nivelParticipacionService;
+
     @GetMapping("/lista")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<UsuarioIncentivoDTO>> listar() {
         ModelMapper m = new ModelMapper();
 
@@ -70,6 +83,7 @@ public class UsuarioIncentivoController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#dto.idUsuario)")
     public ResponseEntity<?> registrar(@RequestBody UsuarioIncentivoDTO dto) {
         Optional<Usuario> usuario = usuarioService.listId(dto.getIdUsuario());
 
@@ -98,6 +112,7 @@ public class UsuarioIncentivoController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isUsuarioIncentivoOwner(#id)")
     public ResponseEntity<?> buscarPorId(@PathVariable UUID id) {
         ModelMapper m = new ModelMapper();
         Optional<UsuarioIncentivo> usu = uS.listId(id);
@@ -114,6 +129,7 @@ public class UsuarioIncentivoController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("@securityPermissionService.isUsuarioIncentivoOwner(#dto.id)")
     public ResponseEntity<String> actualizar(@RequestBody UsuarioIncentivoDTO dto) {
         Optional<UsuarioIncentivo> existente = uS.listId(dto.getId());
 
@@ -149,6 +165,7 @@ public class UsuarioIncentivoController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isUsuarioIncentivoOwner(#id)")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<UsuarioIncentivo> usuarioIncentivo = uS.listId(id);
 
@@ -159,6 +176,136 @@ public class UsuarioIncentivoController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Usuario incentivo no encontrado");
         }
+    }
+
+    @GetMapping("/estado/{idUsuario}")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
+    public ResponseEntity<?> estadoIncentivos(@PathVariable UUID idUsuario) {
+        if (usuarioService.listId(idUsuario).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("recompensaDiaria", estadoRecompensaDiaria(idUsuario));
+        response.put("desafios", progresoDesafios(idUsuario));
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/recompensa-diaria/{idUsuario}")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
+    public ResponseEntity<?> recompensaDiaria(@PathVariable UUID idUsuario) {
+        if (usuarioService.listId(idUsuario).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        return ResponseEntity.ok(estadoRecompensaDiaria(idUsuario));
+    }
+
+    @Transactional
+    @PostMapping("/recompensa-diaria/{idUsuario}/reclamar")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
+    public ResponseEntity<?> reclamarRecompensaDiaria(@PathVariable UUID idUsuario) {
+        Optional<Usuario> usuarioOpt = usuarioService.listId(idUsuario);
+        if (usuarioOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        if (recompensaDiariaReclamadaHoy(idUsuario)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(estadoRecompensaDiaria(idUsuario));
+        }
+
+        int nuevaRacha = calcularRacha(idUsuario, LocalDate.now().minusDays(1)) + 1;
+        Usuario usuario = usuarioOpt.get();
+        usuario.setPuntosTotales((usuario.getPuntosTotales() == null ? 0 : usuario.getPuntosTotales()) + PUNTOS_RECOMPENSA_DIARIA);
+        usuarioService.update(usuario);
+
+        TransaccionPuntos transaccion = new TransaccionPuntos();
+        transaccion.setUsuario(usuario);
+        transaccion.setTipo("ganado");
+        transaccion.setPuntos(PUNTOS_RECOMPENSA_DIARIA);
+        transaccion.setMotivo("Recompensa diaria por racha de " + nuevaRacha + " dias");
+        transaccion.setReferenciaTipo(REFERENCIA_RECOMPENSA_DIARIA);
+        transaccion.setReferenciaId(usuario.getId());
+        transaccionPuntosService.insert(transaccion);
+
+        crearNotificacion(usuario, "logro", "Recompensa diaria reclamada",
+                "Ganaste " + PUNTOS_RECOMPENSA_DIARIA + " puntos. Racha actual: " + nuevaRacha + " dias.");
+        nivelParticipacionService.actualizarNivelSiCorresponde(usuario);
+
+        Map<String, Object> response = estadoRecompensaDiaria(idUsuario);
+        response.put("puntosOtorgados", PUNTOS_RECOMPENSA_DIARIA);
+        response.put("mensaje", "Recompensa diaria reclamada con exito");
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PatchMapping("/desafios/{idUsuarioIncentivo}/completar")
+    @PreAuthorize("@securityPermissionService.isUsuarioIncentivoOwner(#idUsuarioIncentivo)")
+    public ResponseEntity<?> completarDesafio(@PathVariable UUID idUsuarioIncentivo) {
+        Optional<UsuarioIncentivo> usuarioIncentivoOpt = uS.listId(idUsuarioIncentivo);
+        if (usuarioIncentivoOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario incentivo no encontrado");
+        }
+
+        UsuarioIncentivo usuarioIncentivo = usuarioIncentivoOpt.get();
+        if (!esDesafio(usuarioIncentivo)) {
+            return ResponseEntity.badRequest().body("El incentivo indicado no es un desafio");
+        }
+
+        Integer meta = usuarioIncentivo.getIncentivo().getMetaCantidad();
+        if (meta != null) {
+            usuarioIncentivo.setCantidadActual(meta);
+        }
+        usuarioIncentivo.setEstado("completado");
+        usuarioIncentivo.setCompletadoEn(null);
+        uS.update(usuarioIncentivo);
+        return ResponseEntity.ok(toDto(usuarioIncentivo));
+    }
+
+    @Transactional
+    @PostMapping("/desafios/{idUsuarioIncentivo}/reclamar")
+    @PreAuthorize("@securityPermissionService.isUsuarioIncentivoOwner(#idUsuarioIncentivo)")
+    public ResponseEntity<?> reclamarDesafio(@PathVariable UUID idUsuarioIncentivo) {
+        Optional<UsuarioIncentivo> usuarioIncentivoOpt = uS.listId(idUsuarioIncentivo);
+        if (usuarioIncentivoOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario incentivo no encontrado");
+        }
+
+        UsuarioIncentivo usuarioIncentivo = usuarioIncentivoOpt.get();
+        if (!esDesafio(usuarioIncentivo)) {
+            return ResponseEntity.badRequest().body("El incentivo indicado no es un desafio");
+        }
+        if (usuarioIncentivo.getCompletadoEn() != null || "reclamado".equalsIgnoreCase(usuarioIncentivo.getEstado())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("El desafio ya fue reclamado");
+        }
+        if (!desafioCompletado(usuarioIncentivo)) {
+            return ResponseEntity.badRequest().body("El desafio todavia no esta completado");
+        }
+
+        Usuario usuario = usuarioIncentivo.getUsuario();
+        int puntos = puntosDesafio(usuarioIncentivo);
+        usuario.setPuntosTotales((usuario.getPuntosTotales() == null ? 0 : usuario.getPuntosTotales()) + puntos);
+        usuarioService.update(usuario);
+
+        usuarioIncentivo.setEstado("reclamado");
+        usuarioIncentivo.setCompletadoEn(LocalDateTime.now());
+        UsuarioIncentivo guardado = actualizarYRetornar(usuarioIncentivo);
+
+        TransaccionPuntos transaccion = new TransaccionPuntos();
+        transaccion.setUsuario(usuario);
+        transaccion.setTipo("ganado");
+        transaccion.setPuntos(puntos);
+        transaccion.setMotivo("Desafio completado: " + usuarioIncentivo.getIncentivo().getNombre());
+        transaccion.setReferenciaTipo(REFERENCIA_DESAFIO);
+        transaccion.setReferenciaId(usuarioIncentivo.getId());
+        transaccionPuntosService.insert(transaccion);
+
+        crearNotificacion(usuario, "logro", "Desafio completado",
+                "Ganaste " + puntos + " puntos por completar " + usuarioIncentivo.getIncentivo().getNombre() + ".");
+        nivelParticipacionService.actualizarNivelSiCorresponde(usuario);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("puntosOtorgados", puntos);
+        response.put("desafio", toDto(guardado));
+        response.put("mensaje", "Puntos de desafio reclamados con exito");
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/progreso/{idUsuario}")
@@ -284,6 +431,7 @@ public class UsuarioIncentivoController {
 
         crearNotificacion(usuario, "incentivo", "Incentivo canjeado",
                 "Canjeaste el incentivo " + incentivo.getNombre());
+        nivelParticipacionService.actualizarNivelSiCorresponde(usuario);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(guardado));
     }
@@ -321,12 +469,106 @@ public class UsuarioIncentivoController {
         notificacionService.insert(notificacion);
     }
 
+    private Map<String, Object> estadoRecompensaDiaria(UUID idUsuario) {
+        boolean reclamadaHoy = recompensaDiariaReclamadaHoy(idUsuario);
+        LocalDate inicioRacha = reclamadaHoy ? LocalDate.now() : LocalDate.now().minusDays(1);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("idUsuario", idUsuario);
+        response.put("estado", reclamadaHoy ? "Ya reclamado" : "Disponible para reclamar");
+        response.put("disponibleParaReclamar", !reclamadaHoy);
+        response.put("rachaDias", calcularRacha(idUsuario, inicioRacha));
+        response.put("puntosDisponibles", reclamadaHoy ? 0 : PUNTOS_RECOMPENSA_DIARIA);
+        return response;
+    }
+
+    private boolean recompensaDiariaReclamadaHoy(UUID idUsuario) {
+        LocalDateTime inicio = LocalDate.now().atStartOfDay();
+        return transaccionPuntosService.existsByUsuarioAndReferenciaTipoBetween(
+                idUsuario,
+                REFERENCIA_RECOMPENSA_DIARIA,
+                inicio,
+                inicio.plusDays(1).minusNanos(1)
+        );
+    }
+
+    private int calcularRacha(UUID idUsuario, LocalDate fechaInicial) {
+        LocalDate esperada = fechaInicial;
+        int racha = 0;
+        LocalDate ultimaContada = null;
+        for (TransaccionPuntos transaccion : transaccionPuntosService.listByUsuarioAndReferenciaTipo(idUsuario, REFERENCIA_RECOMPENSA_DIARIA)) {
+            if (transaccion.getCreatedAt() == null) {
+                continue;
+            }
+            LocalDate fecha = transaccion.getCreatedAt().toLocalDate();
+            if (fecha.equals(ultimaContada)) {
+                continue;
+            }
+            if (fecha.equals(esperada)) {
+                racha++;
+                ultimaContada = fecha;
+                esperada = esperada.minusDays(1);
+            } else if (fecha.isBefore(esperada)) {
+                break;
+            }
+        }
+        return racha;
+    }
+
+    private List<ProgresoIncentivoDTO> progresoDesafios(UUID idUsuario) {
+        List<ProgresoIncentivoDTO> respuesta = new ArrayList<>();
+        for (Object[] fila : uS.progresoIncentivosUsuario(idUsuario)) {
+            String tipo = (String) fila[3];
+            if (!"desafio".equalsIgnoreCase(tipo)) {
+                continue;
+            }
+            ProgresoIncentivoDTO dto = new ProgresoIncentivoDTO();
+            dto.setIdUsuarioIncentivo(toUuid(fila[0]));
+            dto.setIdIncentivo(toUuid(fila[1]));
+            dto.setNombreIncentivo((String) fila[2]);
+            dto.setTipo(tipo);
+            dto.setMetaCantidad(toInteger(fila[4]));
+            dto.setMetaUnidad((String) fila[5]);
+            dto.setCantidadActual(toInteger(fila[6]));
+            dto.setEstado((String) fila[7]);
+            dto.setCompletadoEn(toLocalDateTime(fila[8]));
+            dto.setPuedeReclamar(toBoolean(fila[9]));
+            respuesta.add(dto);
+        }
+        return respuesta;
+    }
+
+    private boolean esDesafio(UsuarioIncentivo usuarioIncentivo) {
+        return usuarioIncentivo.getIncentivo() != null
+                && "desafio".equalsIgnoreCase(usuarioIncentivo.getIncentivo().getTipo());
+    }
+
+    private boolean desafioCompletado(UsuarioIncentivo usuarioIncentivo) {
+        if ("completado".equalsIgnoreCase(usuarioIncentivo.getEstado())) {
+            return true;
+        }
+        Integer meta = usuarioIncentivo.getIncentivo().getMetaCantidad();
+        return meta != null
+                && usuarioIncentivo.getCantidadActual() != null
+                && usuarioIncentivo.getCantidadActual() >= meta;
+    }
+
+    private int puntosDesafio(UsuarioIncentivo usuarioIncentivo) {
+        Integer stockComoPuntosDemo = usuarioIncentivo.getIncentivo().getStock();
+        return stockComoPuntosDemo != null && stockComoPuntosDemo > 0
+                ? stockComoPuntosDemo
+                : PUNTOS_DESAFIO_DEFAULT;
+    }
+
     private UUID toUuid(Object value) {
         if (value == null) {
             return null;
         }
         if (value instanceof UUID uuid) {
             return uuid;
+        }
+        if (value instanceof byte[] bytes && bytes.length == 16) {
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            return new UUID(buffer.getLong(), buffer.getLong());
         }
         return UUID.fromString(value.toString());
     }

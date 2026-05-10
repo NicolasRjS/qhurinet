@@ -4,6 +4,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.ClasificacionMaterialDTO;
 import pe.edu.upc.qhurinet.dtos.ClasificarMaterialRequestDTO;
@@ -46,6 +47,7 @@ public class MaterialController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> registrar(@RequestBody MaterialDTO dto) {
         ModelMapper m = new ModelMapper();
         Material mat = m.map(dto, Material.class);
@@ -69,6 +71,7 @@ public class MaterialController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> actualizar(@RequestBody MaterialDTO dto) {
         Optional<Material> existente = mS.listId(dto.getId());
 
@@ -89,6 +92,7 @@ public class MaterialController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> eliminar(@PathVariable int id) {
         Optional<Material> material = mS.listId(id);
 

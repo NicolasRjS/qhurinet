@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import pe.edu.upc.qhurinet.dtos.NotificacionDTO;
 import pe.edu.upc.qhurinet.dtos.PushNotificacionRequestDTO;
+import pe.edu.upc.qhurinet.entities.Incentivo;
 import pe.edu.upc.qhurinet.entities.Notificacion;
 import pe.edu.upc.qhurinet.entities.Usuario;
+import pe.edu.upc.qhurinet.servicesinterfaces.IIncentivoService;
 import pe.edu.upc.qhurinet.servicesinterfaces.INotificacionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
@@ -36,7 +38,11 @@ public class NotificacionController {
     @Autowired
     private IUsuarioService uS;
 
+    @Autowired
+    private IIncentivoService incentivoService;
+
     @GetMapping("/lista")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<NotificacionDTO>> listar() {
         List<NotificacionDTO> lista = nS.list()
                 .stream()
@@ -161,6 +167,46 @@ public class NotificacionController {
 
         if (generadas.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay logros nuevos para notificar");
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(generadas);
+    }
+
+    @PostMapping("/generar-recompensas-disponibles/{idUsuario}")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
+    public ResponseEntity<?> generarRecompensasDisponibles(@PathVariable UUID idUsuario) {
+        Optional<Usuario> usuario = uS.listId(idUsuario);
+        if (usuario.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        List<NotificacionDTO> generadas = new ArrayList<>();
+        int puntos = usuario.get().getPuntosTotales() == null ? 0 : usuario.get().getPuntosTotales();
+        for (Incentivo incentivo : incentivoService.list()) {
+            if (Boolean.FALSE.equals(incentivo.getActivo())
+                    || "desafio".equalsIgnoreCase(incentivo.getTipo())
+                    || incentivo.getCostoPuntos() == null
+                    || incentivo.getCostoPuntos() > puntos) {
+                continue;
+            }
+
+            String titulo = "Nueva recompensa disponible: " + incentivo.getNombre();
+            if (nS.existsByUsuarioTipoTitulo(idUsuario, "recompensa", titulo)) {
+                continue;
+            }
+
+            Notificacion notificacion = new Notificacion();
+            notificacion.setUsuario(usuario.get());
+            notificacion.setTipo("recompensa");
+            notificacion.setTitulo(titulo);
+            notificacion.setMensaje("Tienes puntos suficientes para canjear " + incentivo.getNombre() + ".");
+            notificacion.setLeida(false);
+            notificacion.setEstado("pendiente");
+            generadas.add(toDto(nS.insert(notificacion)));
+        }
+
+        if (generadas.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay recompensas nuevas para notificar");
         }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(generadas);

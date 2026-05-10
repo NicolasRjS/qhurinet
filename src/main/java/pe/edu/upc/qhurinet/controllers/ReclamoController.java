@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import pe.edu.upc.qhurinet.dtos.ReclamoDTO;
@@ -33,6 +34,7 @@ public class ReclamoController {
     private IArchivoStorageService archivoStorageService;
 
     @GetMapping("/lista")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<ReclamoDTO>> listar() {
         ModelMapper m = new ModelMapper();
 
@@ -53,6 +55,7 @@ public class ReclamoController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("@securityPermissionService.canCreateReclamo(#dto)")
     public ResponseEntity<?> registrar(@RequestBody ReclamoDTO dto) {
         Optional<Usuario> usuario = uS.listId(dto.getIdUsuario());
 
@@ -72,6 +75,7 @@ public class ReclamoController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isReclamoOwner(#id)")
     public ResponseEntity<?> buscarPorId(@PathVariable UUID id) {
         ModelMapper m = new ModelMapper();
         Optional<Reclamo> reclamo = rS.listId(id);
@@ -87,6 +91,7 @@ public class ReclamoController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("@securityPermissionService.isReclamoOwner(#dto.id)")
     public ResponseEntity<String> actualizar(@RequestBody ReclamoDTO dto) {
         Optional<Reclamo> existente = rS.listId(dto.getId());
 
@@ -116,6 +121,7 @@ public class ReclamoController {
     }
 
     @PostMapping(value = "/{id}/evidencia", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@securityPermissionService.isReclamoOwner(#id)")
     public ResponseEntity<?> subirEvidencia(@PathVariable UUID id,
                                             @RequestParam("file") MultipartFile file) {
         Optional<Reclamo> reclamo = rS.listId(id);
@@ -138,6 +144,7 @@ public class ReclamoController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isReclamoOwner(#id)")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<Reclamo> reclamo = rS.listId(id);
 

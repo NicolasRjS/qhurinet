@@ -4,6 +4,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.HistorialPuntosSaldoDTO;
 import pe.edu.upc.qhurinet.dtos.PuntosMesUsuarioDTO;
@@ -30,6 +31,7 @@ public class TransaccionPuntosController {
     private IUsuarioService uS;
 
     @GetMapping("/lista")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<TransaccionPuntosDTO>> listar() {
         ModelMapper m = new ModelMapper();
 
@@ -50,6 +52,7 @@ public class TransaccionPuntosController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> registrar(@RequestBody TransaccionPuntosDTO dto) {
         Optional<Usuario> usuario = uS.listId(dto.getIdUsuario());
 
@@ -69,6 +72,7 @@ public class TransaccionPuntosController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isTransaccionPuntosOwner(#id)")
     public ResponseEntity<?> buscarPorId(@PathVariable UUID id) {
         ModelMapper m = new ModelMapper();
         Optional<TransaccionPuntos> transaccion = tS.listId(id);
@@ -84,6 +88,7 @@ public class TransaccionPuntosController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> actualizar(@RequestBody TransaccionPuntosDTO dto) {
         Optional<TransaccionPuntos> existente = tS.listId(dto.getId());
 
@@ -113,6 +118,7 @@ public class TransaccionPuntosController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<TransaccionPuntos> transaccion = tS.listId(id);
 
@@ -125,6 +131,7 @@ public class TransaccionPuntosController {
         }
     }
     @GetMapping("/total-mes/{idUsuario}")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
     public ResponseEntity<?> totalPuntosMes(@PathVariable UUID idUsuario,
                                             @RequestParam("mes") String mes) {
         List<Object[]> lista = tS.totalPuntosGanadosPorMes(idUsuario, mes);
@@ -140,6 +147,7 @@ public class TransaccionPuntosController {
     }
 
     @GetMapping("/historial/{idUsuario}")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
     public ResponseEntity<?> historialPuntos(@PathVariable UUID idUsuario) {
         List<Object[]> lista = tS.historialPuntosConSaldo(idUsuario);
 
