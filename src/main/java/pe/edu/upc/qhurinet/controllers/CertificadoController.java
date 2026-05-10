@@ -122,7 +122,9 @@ public class CertificadoController {
         c.setNivelDificultad(dto.getNivelDificultad());
         c.setPuntosRequeridos(dto.getPuntosRequeridos());
         c.setUrlPdf(dto.getUrlPdf());
-        c.setFechaObtencion(dto.getFechaObtencion());
+        if (dto.getFechaObtencion() != null) {
+            c.setFechaObtencion(dto.getFechaObtencion());
+        }
 
         cS.update(c);
 

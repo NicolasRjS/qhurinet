@@ -14,6 +14,7 @@ public interface IPublicacionService {
     public void delete(UUID id);
     public List<Object[]> buscarPublicacionesPorTexto(String texto);
     List<Object[]> publicacionesCercanas(Double lat, Double lng, Double radio);
+    List<Object[]> publicacionesMapa(Double lat, Double lng, Double radioKm, String material, String categoria, String tipoPunto);
     List<Object[]> publicacionesPorCategoriaMaterial(String categoria);
     List<Object[]> historialMaterialesUsuario(UUID idUsuario);
 

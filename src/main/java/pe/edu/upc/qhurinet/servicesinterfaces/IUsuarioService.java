@@ -2,6 +2,7 @@ package pe.edu.upc.qhurinet.servicesinterfaces;
 
 import pe.edu.upc.qhurinet.entities.Usuario;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,4 +18,5 @@ public interface IUsuarioService {
     List<Object[]> perfilRecolector(UUID idRecolector);
     List<Object[]> comentariosRecolector(UUID idRecolector);
     List<Object[]> estadisticasResumenUsuario(UUID idUsuario);
+    List<Object[]> estadisticasResumenUsuarioDesde(UUID idUsuario, LocalDate fechaDesde);
 }

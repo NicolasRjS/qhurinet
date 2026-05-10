@@ -12,4 +12,6 @@ public interface IRutaService {
     public Optional<Ruta> listId(UUID id);
     public void update(Ruta r);
     public void delete(UUID id);
+    List<Ruta> listByUsuario(UUID idUsuario);
+    List<Ruta> listFavoritasByUsuario(UUID idUsuario);
 }

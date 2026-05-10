@@ -2,19 +2,29 @@ package pe.edu.upc.qhurinet.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import pe.edu.upc.qhurinet.dtos.ArchivoUrlDTO;
 import pe.edu.upc.qhurinet.dtos.EstadisticasResumenDTO;
+import pe.edu.upc.qhurinet.dtos.HistorialPuntosSaldoDTO;
 import pe.edu.upc.qhurinet.dtos.KgPorMesDTO;
 import pe.edu.upc.qhurinet.dtos.PerfilRecolectorDTO;
+import pe.edu.upc.qhurinet.dtos.PuntosUsuarioDTO;
 import pe.edu.upc.qhurinet.dtos.ResenaRecolectorDTO;
 import pe.edu.upc.qhurinet.dtos.UsuarioDTO;
 import pe.edu.upc.qhurinet.dtos.UsuarioRankingDTO;
 import pe.edu.upc.qhurinet.entities.Role;
 import pe.edu.upc.qhurinet.entities.Usuario;
+import pe.edu.upc.qhurinet.servicesinterfaces.IArchivoStorageService;
+import pe.edu.upc.qhurinet.servicesinterfaces.ITransaccionPuntosService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
+import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +41,14 @@ public class UsuarioController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private ITransaccionPuntosService transaccionPuntosService;
+
+    @Autowired
+    private IArchivoStorageService archivoStorageService;
+
     @GetMapping("/lista")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<UsuarioDTO>> listar() {
         List<UsuarioDTO> lista = uS.list()
                 .stream()
@@ -54,6 +71,7 @@ public class UsuarioController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#id)")
     public ResponseEntity<?> buscarPorId(@PathVariable UUID id) {
         Optional<Usuario> usu = uS.listId(id);
 
@@ -66,6 +84,7 @@ public class UsuarioController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#dto.id)")
     public ResponseEntity<String> actualizar(@RequestBody UsuarioDTO dto) {
         Optional<Usuario> existente = uS.listId(dto.getId());
 
@@ -79,7 +98,48 @@ public class UsuarioController {
         return ResponseEntity.ok("Usuario actualizado correctamente");
     }
 
+    @PatchMapping("/{id}/foto-url")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#id)")
+    public ResponseEntity<?> actualizarFotoUrl(@PathVariable UUID id,
+                                               @RequestBody ArchivoUrlDTO dto) {
+        Optional<Usuario> existente = uS.listId(id);
+        if (existente.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+        if (dto == null || dto.getUrl() == null || dto.getUrl().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("URL de foto obligatoria");
+        }
+
+        Usuario usuario = existente.get();
+        usuario.setFotoUrl(dto.getUrl());
+        uS.update(usuario);
+        return ResponseEntity.ok(toDto(usuario));
+    }
+
+    @PostMapping(value = "/{id}/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#id)")
+    public ResponseEntity<?> subirFoto(@PathVariable UUID id,
+                                       @RequestParam("file") MultipartFile file) {
+        Optional<Usuario> existente = uS.listId(id);
+        if (existente.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        try {
+            var archivo = archivoStorageService.guardarImagen(file, "usuarios");
+            Usuario usuario = existente.get();
+            usuario.setFotoUrl(archivo.getUrl());
+            uS.update(usuario);
+            return ResponseEntity.status(HttpStatus.CREATED).body(archivo);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("No se pudo guardar el archivo");
+        }
+    }
+
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<Usuario> usuario = uS.listId(id);
 
@@ -157,6 +217,7 @@ public class UsuarioController {
     }
 
     @GetMapping("/{idUsuario}/estadisticas/kg-por-mes")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
     public ResponseEntity<?> kgRecicladosPorMes(@PathVariable UUID idUsuario) {
         List<Object[]> lista = uS.kgRecicladosPorMes(idUsuario);
 
@@ -174,6 +235,21 @@ public class UsuarioController {
         }
 
         return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping("/{idUsuario}/puntos")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
+    public ResponseEntity<?> puntosUsuario(@PathVariable UUID idUsuario) {
+        Optional<Usuario> usuario = uS.listId(idUsuario);
+        if (usuario.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        PuntosUsuarioDTO dto = new PuntosUsuarioDTO();
+        dto.setIdUsuario(idUsuario);
+        dto.setSaldo(usuario.get().getPuntosTotales() == null ? 0 : usuario.get().getPuntosTotales());
+        dto.setHistorial(mapHistorialPuntos(transaccionPuntosService.historialPuntosConSaldo(idUsuario)));
+        return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/ranking")
@@ -223,6 +299,7 @@ public class UsuarioController {
     }
 
     @GetMapping("/{idUsuario}/estadisticas/resumen")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
     public ResponseEntity<?> estadisticasResumen(@PathVariable UUID idUsuario) {
         List<Object[]> lista = uS.estadisticasResumenUsuario(idUsuario);
 
@@ -230,7 +307,32 @@ public class UsuarioController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
         }
 
-        Object[] fila = lista.get(0);
+        EstadisticasResumenDTO dto = mapEstadisticasResumen(lista.get(0));
+
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/{idUsuario}/estadisticas")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
+    public ResponseEntity<?> estadisticas(@PathVariable UUID idUsuario,
+                                          @RequestParam(value = "periodo_meses", required = false) Integer periodoMeses) {
+        if (periodoMeses != null && periodoMeses <= 0) {
+            return ResponseEntity.badRequest().body("periodo_meses debe ser mayor a cero");
+        }
+
+        LocalDate fechaDesde = periodoMeses == null ? null : LocalDate.now().minusMonths(periodoMeses);
+        List<Object[]> lista = periodoMeses == null
+                ? uS.estadisticasResumenUsuario(idUsuario)
+                : uS.estadisticasResumenUsuarioDesde(idUsuario, fechaDesde);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        return ResponseEntity.ok(mapEstadisticasResumen(lista.get(0)));
+    }
+
+    private EstadisticasResumenDTO mapEstadisticasResumen(Object[] fila) {
         EstadisticasResumenDTO dto = new EstadisticasResumenDTO();
         dto.setIdUsuario(toUuid(fila[0]));
         dto.setNombre((String) fila[1]);
@@ -241,8 +343,24 @@ public class UsuarioController {
         dto.setRecojosComoRecolector(toLong(fila[6]));
         dto.setKgReciclados(toDouble(fila[7]));
         dto.setIncidencias(toLong(fila[8]));
+        return dto;
+    }
 
-        return ResponseEntity.ok(dto);
+    private List<HistorialPuntosSaldoDTO> mapHistorialPuntos(List<Object[]> filas) {
+        List<HistorialPuntosSaldoDTO> historial = new ArrayList<>();
+        for (Object[] fila : filas) {
+            HistorialPuntosSaldoDTO dto = new HistorialPuntosSaldoDTO();
+            dto.setIdTransaccion(toUuid(fila[0]));
+            dto.setCreatedAt(toLocalDateTime(fila[1]));
+            dto.setTipo((String) fila[2]);
+            dto.setPuntos(toInteger(fila[3]));
+            dto.setMotivo((String) fila[4]);
+            dto.setReferenciaTipo((String) fila[5]);
+            dto.setReferenciaId(toUuid(fila[6]));
+            dto.setSaldoAcumulado(toInteger(fila[7]));
+            historial.add(dto);
+        }
+        return historial;
     }
 
     private List<ResenaRecolectorDTO> mapComentariosRecolector(List<Object[]> filas) {

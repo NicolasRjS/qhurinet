@@ -34,6 +34,35 @@ public interface IPublicacionRepository extends JpaRepository<Publicacion, UUID>
     List<Object[]> publicacionesCercanas(@Param("lat") Double lat,
                                          @Param("lng") Double lng,
                                          @Param("radio") Double radio);
+
+    @Query(value = """
+        SELECT p.id, p.titulo, p.estado, p.direccion_referencia, p.latitud, p.longitud,
+               p.fecha_disponibilidad, u.id AS id_usuario, u.nombre AS nombre_usuario,
+               u.tipo_cuenta AS tipo_punto, m.nombre AS material, m.categoria,
+               pm.cantidad, pm.unidad,
+               (6371 * acos(cos(radians(:lat)) * cos(radians(p.latitud)) *
+               cos(radians(p.longitud) - radians(:lng)) +
+               sin(radians(:lat)) * sin(radians(p.latitud)))) AS distancia_km
+        FROM publicacion p
+        INNER JOIN usuario u ON p.id_usuario = u.id
+        INNER JOIN publicacion_material pm ON p.id = pm.id_publicacion
+        INNER JOIN material m ON pm.id_material = m.id
+        WHERE p.estado = 'activa'
+        AND (:material IS NULL OR m.nombre ILIKE CONCAT('%', :material, '%'))
+        AND (:categoria IS NULL OR LOWER(m.categoria) = LOWER(:categoria))
+        AND (:tipoPunto IS NULL OR LOWER(u.tipo_cuenta) = LOWER(:tipoPunto))
+        AND (6371 * acos(cos(radians(:lat)) * cos(radians(p.latitud)) *
+             cos(radians(p.longitud) - radians(:lng)) +
+             sin(radians(:lat)) * sin(radians(p.latitud)))) <= :radioKm
+        ORDER BY distancia_km ASC, p.created_at DESC
+        """, nativeQuery = true)
+    List<Object[]> publicacionesMapa(@Param("lat") Double lat,
+                                     @Param("lng") Double lng,
+                                     @Param("radioKm") Double radioKm,
+                                     @Param("material") String material,
+                                     @Param("categoria") String categoria,
+                                     @Param("tipoPunto") String tipoPunto);
+
     @Query(value = """
         SELECT p.id, p.titulo, p.latitud, p.longitud, m.nombre, pm.cantidad
         FROM publicacion p

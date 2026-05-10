@@ -3,14 +3,20 @@ package pe.edu.upc.qhurinet.controllers;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import pe.edu.upc.qhurinet.dtos.ArchivoUrlDTO;
 import pe.edu.upc.qhurinet.dtos.DocumentoVerificacionDTO;
 import pe.edu.upc.qhurinet.entities.DocumentoVerificacion;
 import pe.edu.upc.qhurinet.entities.Usuario;
+import pe.edu.upc.qhurinet.servicesinterfaces.IArchivoStorageService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IDocumentoVerificacionService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +30,9 @@ public class DocumentoVerificacionController {
 
     @Autowired
     private IUsuarioService uS;
+
+    @Autowired
+    private IArchivoStorageService archivoStorageService;
 
     @GetMapping("/lista")
     public ResponseEntity<List<DocumentoVerificacionDTO>> listar() {
@@ -46,6 +55,7 @@ public class DocumentoVerificacionController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#dto.idUsuario)")
     public ResponseEntity<?> registrar(@RequestBody DocumentoVerificacionDTO dto) {
         Optional<Usuario> usuario = uS.listId(dto.getIdUsuario());
 
@@ -80,6 +90,7 @@ public class DocumentoVerificacionController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("@securityPermissionService.isDocumentoOwner(#dto.id)")
     public ResponseEntity<String> actualizar(@RequestBody DocumentoVerificacionDTO dto) {
         Optional<DocumentoVerificacion> existente = dS.listId(dto.getId());
 
@@ -108,7 +119,54 @@ public class DocumentoVerificacionController {
         return ResponseEntity.ok("Documento de verificacion actualizado correctamente");
     }
 
+    @PatchMapping("/{id}/archivo-url")
+    @PreAuthorize("@securityPermissionService.isDocumentoOwner(#id)")
+    public ResponseEntity<?> actualizarArchivoUrl(@PathVariable UUID id,
+                                                  @RequestBody ArchivoUrlDTO dto) {
+        Optional<DocumentoVerificacion> existente = dS.listId(id);
+        if (existente.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Documento de verificacion no encontrado");
+        }
+        if (dto == null || dto.getUrl() == null || dto.getUrl().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("URL de archivo obligatoria");
+        }
+
+        DocumentoVerificacion d = existente.get();
+        d.setUrlArchivo(dto.getUrl());
+        dS.update(d);
+
+        ModelMapper m = new ModelMapper();
+        DocumentoVerificacionDTO responseDTO = m.map(d, DocumentoVerificacionDTO.class);
+        responseDTO.setIdUsuario(d.getUsuario().getId());
+        return ResponseEntity.ok(responseDTO);
+    }
+
+    @PostMapping(value = "/{id}/archivo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@securityPermissionService.isDocumentoOwner(#id)")
+    public ResponseEntity<?> subirArchivo(@PathVariable UUID id,
+                                          @RequestParam("file") MultipartFile file) {
+        Optional<DocumentoVerificacion> existente = dS.listId(id);
+        if (existente.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Documento de verificacion no encontrado");
+        }
+
+        try {
+            var archivo = archivoStorageService.guardarDocumento(file, "documentos-verificacion");
+            DocumentoVerificacion d = existente.get();
+            d.setUrlArchivo(archivo.getUrl());
+            dS.update(d);
+            return ResponseEntity.status(HttpStatus.CREATED).body(archivo);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("No se pudo guardar el archivo");
+        }
+    }
+
     @DeleteMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isDocumentoOwner(#id)")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<DocumentoVerificacion> documento = dS.listId(id);
 

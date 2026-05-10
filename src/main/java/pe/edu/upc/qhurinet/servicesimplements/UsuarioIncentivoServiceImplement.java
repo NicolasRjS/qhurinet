@@ -44,4 +44,9 @@ public class UsuarioIncentivoServiceImplement implements IUsuarioIncentivoServic
     public List<Object[]> progresoIncentivosUsuario(UUID idUsuario) {
         return uR.progresoIncentivosUsuario(idUsuario);
     }
+
+    @Override
+    public List<Object[]> recordatoriosIncentivosUsuario(UUID idUsuario) {
+        return uR.recordatoriosIncentivosUsuario(idUsuario);
+    }
 }

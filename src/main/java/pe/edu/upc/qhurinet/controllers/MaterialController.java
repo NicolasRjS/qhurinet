@@ -5,10 +5,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.upc.qhurinet.dtos.ClasificacionMaterialDTO;
+import pe.edu.upc.qhurinet.dtos.ClasificarMaterialRequestDTO;
 import pe.edu.upc.qhurinet.dtos.MaterialDTO;
 import pe.edu.upc.qhurinet.dtos.MaterialSugerenciaDTO;
 import pe.edu.upc.qhurinet.dtos.MaterialTopDTO;
 import pe.edu.upc.qhurinet.entities.Material;
+import pe.edu.upc.qhurinet.servicesinterfaces.IClasificacionMaterialService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IMaterialService;
 
 import java.math.BigDecimal;
@@ -22,6 +25,9 @@ import java.util.stream.Collectors;
 public class MaterialController {
     @Autowired
     private IMaterialService mS;
+
+    @Autowired
+    private IClasificacionMaterialService clasificacionMaterialService;
 
     @GetMapping("/lista")
     public ResponseEntity<List<MaterialDTO>> listar() {
@@ -138,6 +144,32 @@ public class MaterialController {
         }
 
         return ResponseEntity.ok(respuesta);
+    }
+
+    @PostMapping("/clasificar")
+    public ResponseEntity<?> clasificarMaterial(@RequestBody ClasificarMaterialRequestDTO request) {
+        String texto = textoClasificacion(request);
+        if (texto == null || texto.isBlank()) {
+            return ResponseEntity.badRequest().body("Texto, titulo u observaciones son obligatorios");
+        }
+
+        List<ClasificacionMaterialDTO> respuesta = clasificacionMaterialService.clasificar(texto);
+        if (respuesta.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Material no reconocido. Seleccione una categoria manualmente");
+        }
+        return ResponseEntity.ok(respuesta);
+    }
+
+    private String textoClasificacion(ClasificarMaterialRequestDTO request) {
+        if (request == null) {
+            return null;
+        }
+        if (request.getTexto() != null && !request.getTexto().isBlank()) {
+            return request.getTexto();
+        }
+        return ((request.getTitulo() == null ? "" : request.getTitulo()) + " "
+                + (request.getObservaciones() == null ? "" : request.getObservaciones())).trim();
     }
 
     private BigDecimal toBigDecimal(Object value) {

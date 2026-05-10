@@ -48,6 +48,12 @@ public class PublicacionServiceImplement implements IPublicacionService {
     public List<Object[]> publicacionesCercanas(Double lat, Double lng, Double radio) {
         return pR.publicacionesCercanas(lat, lng, radio);
     }
+
+    @Override
+    public List<Object[]> publicacionesMapa(Double lat, Double lng, Double radioKm, String material, String categoria, String tipoPunto) {
+        return pR.publicacionesMapa(lat, lng, radioKm, material, categoria, tipoPunto);
+    }
+
     @Override
     public List<Object[]> publicacionesPorCategoriaMaterial(String categoria) {
         return pR.publicacionesPorCategoriaMaterial(categoria);
