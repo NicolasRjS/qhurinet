@@ -50,6 +50,7 @@ import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -524,7 +525,7 @@ public class RecoleccionController {
 
         for (Object[] fila : lista) {
             HistorialRecoleccionDTO dto = new HistorialRecoleccionDTO();
-            dto.setId((UUID) fila[0]);
+            dto.setId(toUuid(fila[0]));
             dto.setFechaProgramada((LocalDateTime) fila[1]);
             dto.setEstado((String) fila[2]);
             dto.setTituloPublicacion((String) fila[3]);
@@ -546,7 +547,7 @@ public class RecoleccionController {
         Object[] fila = lista.get(0);
 
         PromedioRecolectorDTO dto = new PromedioRecolectorDTO();
-        dto.setIdRecolector((UUID) fila[0]);
+        dto.setIdRecolector(toUuid(fila[0]));
         dto.setNombreRecolector((String) fila[1]);
         dto.setPuntuacionPromedio(((Number) fila[2]).doubleValue());
         dto.setTotalRecolecciones(((Number) fila[3]).longValue());
@@ -568,7 +569,7 @@ public class RecoleccionController {
 
         for (Object[] fila : lista) {
             RecoleccionRangoDTO dto = new RecoleccionRangoDTO();
-            dto.setId((UUID) fila[0]);
+            dto.setId(toUuid(fila[0]));
             dto.setFechaProgramada((LocalDateTime) fila[1]);
             dto.setFechaCompletada((LocalDateTime) fila[2]);
             dto.setEstado((String) fila[3]);
@@ -871,6 +872,10 @@ public class RecoleccionController {
         }
         if (value instanceof UUID uuid) {
             return uuid;
+        }
+        if (value instanceof byte[] bytes && bytes.length == 16) {
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            return new UUID(buffer.getLong(), buffer.getLong());
         }
         return UUID.fromString(value.toString());
     }

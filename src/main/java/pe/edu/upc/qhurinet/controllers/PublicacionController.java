@@ -30,6 +30,7 @@ import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -310,7 +311,7 @@ public class PublicacionController {
 
         for (Object[] fila : lista) {
             PublicacionBusquedaDTO dto = new PublicacionBusquedaDTO();
-            dto.setId((UUID) fila[0]);
+            dto.setId(toUuid(fila[0]));
             dto.setTitulo((String) fila[1]);
             dto.setDireccionReferencia((String) fila[2]);
             dto.setLatitud(((Number) fila[3]).doubleValue());
@@ -382,7 +383,7 @@ public class PublicacionController {
 
         for (Object[] fila : lista) {
             PublicacionCercanaDTO dto = new PublicacionCercanaDTO();
-            dto.setId((UUID) fila[0]);
+            dto.setId(toUuid(fila[0]));
             dto.setTitulo((String) fila[1]);
             dto.setLatitud(((Number) fila[2]).doubleValue());
             dto.setLongitud(((Number) fila[3]).doubleValue());
@@ -404,7 +405,7 @@ public class PublicacionController {
 
         for (Object[] fila : lista) {
             PublicacionCategoriaDTO dto = new PublicacionCategoriaDTO();
-            dto.setIdPublicacion((UUID) fila[0]);
+            dto.setIdPublicacion(toUuid(fila[0]));
             dto.setTitulo((String) fila[1]);
             dto.setLatitud(((Number) fila[2]).doubleValue());
             dto.setLongitud(((Number) fila[3]).doubleValue());
@@ -453,6 +454,10 @@ public class PublicacionController {
         }
         if (value instanceof UUID uuid) {
             return uuid;
+        }
+        if (value instanceof byte[] bytes && bytes.length == 16) {
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            return new UUID(buffer.getLong(), buffer.getLong());
         }
         return UUID.fromString(value.toString());
     }

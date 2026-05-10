@@ -25,7 +25,7 @@ public interface IUsuarioIncentivoRepository extends JpaRepository<UsuarioIncent
                ui.cantidad_actual, ui.estado, i.fecha_fin, ui.completado_en,
                CASE WHEN ui.estado = 'completado' AND ui.completado_en IS NULL THEN true ELSE false END AS puede_reclamar,
                CASE WHEN i.fecha_fin IS NOT NULL
-                         AND i.fecha_fin BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '7 days')
+                         AND i.fecha_fin BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '7' DAY)
                     THEN true ELSE false END AS proximo_a_vencer
         FROM usuario_incentivo ui
         INNER JOIN incentivo i ON ui.id_incentivo = i.id

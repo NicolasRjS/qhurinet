@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.nio.ByteBuffer;
 import java.util.stream.Collectors;
 
 @RestController
@@ -171,6 +172,10 @@ public class IncentivoController {
         }
         if (value instanceof UUID uuid) {
             return uuid;
+        }
+        if (value instanceof byte[] bytes && bytes.length == 16) {
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            return new UUID(buffer.getLong(), buffer.getLong());
         }
         return UUID.fromString(value.toString());
     }
