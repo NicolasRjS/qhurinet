@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 @Component
 public class JwtTokenUtil {
-    private static final long TOKEN_VALIDITY = 5 * 60 * 60 * 1000;
+    private static final long ACCESS_TOKEN_VALIDITY = 15 * 60 * 1000;
 
     @Value("${jwt.secret}")
     private String secret;
@@ -48,6 +48,10 @@ public class JwtTokenUtil {
         return createToken(claims, userDetails.getUsername());
     }
 
+    public long getAccessTokenValiditySeconds() {
+        return ACCESS_TOKEN_VALIDITY / 1000;
+    }
+
     public boolean validateToken(String token, UserDetails userDetails) {
         return getUsernameFromToken(token).equals(userDetails.getUsername()) && !isExpired(token);
     }
@@ -62,7 +66,7 @@ public class JwtTokenUtil {
 
     private String createToken(Map<String, Object> claims, String username) {
         Date now = new Date();
-        Date expiration = new Date(now.getTime() + TOKEN_VALIDITY);
+        Date expiration = new Date(now.getTime() + ACCESS_TOKEN_VALIDITY);
 
         return Jwts.builder()
                 .claims(claims)

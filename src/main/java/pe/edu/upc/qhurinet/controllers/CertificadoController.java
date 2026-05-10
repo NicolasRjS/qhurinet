@@ -4,6 +4,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pe.edu.upc.qhurinet.dtos.CertificadoDTO;
 import pe.edu.upc.qhurinet.entities.Certificado;
@@ -45,7 +46,28 @@ public class CertificadoController {
         return ResponseEntity.ok(lista);
     }
 
+    @GetMapping("/por-dificultad")
+    public ResponseEntity<?> certificadosPorDificultad(@RequestParam("nivel") String nivel) {
+        ModelMapper m = new ModelMapper();
+
+        List<CertificadoDTO> lista = cS.certificadosPorDificultad(nivel)
+                .stream()
+                .map(y -> {
+                    CertificadoDTO dto = m.map(y, CertificadoDTO.class);
+                    dto.setIdUsuario(y.getUsuario().getId());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        return ResponseEntity.ok(lista);
+    }
+
     @PostMapping("/nuevo")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> registrar(@RequestBody CertificadoDTO dto) {
         Optional<Usuario> usuario = uS.listId(dto.getIdUsuario());
 
@@ -80,6 +102,7 @@ public class CertificadoController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> actualizar(@RequestBody CertificadoDTO dto) {
         Optional<Certificado> existente = cS.listId(dto.getId());
 
@@ -102,7 +125,9 @@ public class CertificadoController {
         c.setNivelDificultad(dto.getNivelDificultad());
         c.setPuntosRequeridos(dto.getPuntosRequeridos());
         c.setUrlPdf(dto.getUrlPdf());
-        c.setFechaObtencion(dto.getFechaObtencion());
+        if (dto.getFechaObtencion() != null) {
+            c.setFechaObtencion(dto.getFechaObtencion());
+        }
 
         cS.update(c);
 
@@ -110,6 +135,7 @@ public class CertificadoController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<Certificado> certificado = cS.listId(id);
 

@@ -3,14 +3,19 @@ package pe.edu.upc.qhurinet.controllers;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import pe.edu.upc.qhurinet.dtos.ReclamoDTO;
 import pe.edu.upc.qhurinet.entities.Reclamo;
 import pe.edu.upc.qhurinet.entities.Usuario;
+import pe.edu.upc.qhurinet.servicesinterfaces.IArchivoStorageService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IReclamoService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,7 +30,11 @@ public class ReclamoController {
     @Autowired
     private IUsuarioService uS;
 
+    @Autowired
+    private IArchivoStorageService archivoStorageService;
+
     @GetMapping("/lista")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<ReclamoDTO>> listar() {
         ModelMapper m = new ModelMapper();
 
@@ -46,6 +55,7 @@ public class ReclamoController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("@securityPermissionService.canCreateReclamo(#dto)")
     public ResponseEntity<?> registrar(@RequestBody ReclamoDTO dto) {
         Optional<Usuario> usuario = uS.listId(dto.getIdUsuario());
 
@@ -65,6 +75,7 @@ public class ReclamoController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isReclamoOwner(#id)")
     public ResponseEntity<?> buscarPorId(@PathVariable UUID id) {
         ModelMapper m = new ModelMapper();
         Optional<Reclamo> reclamo = rS.listId(id);
@@ -80,6 +91,7 @@ public class ReclamoController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("@securityPermissionService.isReclamoOwner(#dto.id)")
     public ResponseEntity<String> actualizar(@RequestBody ReclamoDTO dto) {
         Optional<Reclamo> existente = rS.listId(dto.getId());
 
@@ -108,7 +120,31 @@ public class ReclamoController {
         return ResponseEntity.ok("Reclamo actualizado correctamente");
     }
 
+    @PostMapping(value = "/{id}/evidencia", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@securityPermissionService.isReclamoOwner(#id)")
+    public ResponseEntity<?> subirEvidencia(@PathVariable UUID id,
+                                            @RequestParam("file") MultipartFile file) {
+        Optional<Reclamo> reclamo = rS.listId(id);
+        if (reclamo.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Reclamo no encontrado");
+        }
+
+        try {
+            var archivo = archivoStorageService.guardarImagen(file, "reclamos");
+            Reclamo r = reclamo.get();
+            r.setEvidenciaUrl(archivo.getUrl());
+            rS.update(r);
+            return ResponseEntity.status(HttpStatus.CREATED).body(archivo);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("No se pudo guardar el archivo");
+        }
+    }
+
     @DeleteMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isReclamoOwner(#id)")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<Reclamo> reclamo = rS.listId(id);
 

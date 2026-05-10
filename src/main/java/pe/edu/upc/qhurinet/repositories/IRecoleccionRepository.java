@@ -51,4 +51,64 @@ public interface IRecoleccionRepository extends JpaRepository<Recoleccion, UUID>
     List<Object[]> recoleccionesPorRangoYEstado(@Param("fechaIni") LocalDate fechaIni,
                                                 @Param("fechaFin") LocalDate fechaFin,
                                                 @Param("estado") String estado);
+
+    @Query(value = """
+        SELECT r.id, r.fecha_programada, r.estado, r.prioritaria,
+               p.id, p.titulo, u.id, u.nombre
+        FROM recoleccion r
+        INNER JOIN publicacion p ON r.id_publicacion = p.id
+        INNER JOIN usuario u ON r.id_recolector = u.id
+        WHERE CAST(r.fecha_programada AS date) = :fecha
+        ORDER BY r.fecha_programada ASC
+        """, nativeQuery = true)
+    List<Object[]> disponibilidadPorFecha(@Param("fecha") LocalDate fecha);
+
+    @Query(value = """
+        SELECT r.id, p.id, p.titulo, p.direccion_referencia, p.latitud, p.longitud,
+               r.fecha_programada, r.prioritaria, r.estado, emisor.nombre
+        FROM recoleccion r
+        INNER JOIN publicacion p ON r.id_publicacion = p.id
+        INNER JOIN usuario emisor ON p.id_usuario = emisor.id
+        WHERE r.id_recolector = :idRecolector
+        AND LOWER(r.estado) IN ('programada', 'pendiente', 'asignada')
+        ORDER BY r.prioritaria DESC, r.fecha_programada ASC
+        """, nativeQuery = true)
+    List<Object[]> recoleccionesPendientesRecolector(@Param("idRecolector") UUID idRecolector);
+
+    @Query(value = """
+        SELECT r.id, p.id, p.titulo, r.incidencia_descripcion, r.incidencia_estado,
+               r.incidencia_evidencia_url, r.estado, r.fecha_programada, recolector.id, recolector.nombre
+        FROM recoleccion r
+        INNER JOIN publicacion p ON r.id_publicacion = p.id
+        INNER JOIN usuario recolector ON r.id_recolector = recolector.id
+        WHERE (p.id_usuario = :idUsuario OR r.id_recolector = :idUsuario)
+        AND r.incidencia_descripcion IS NOT NULL
+        ORDER BY r.updated_at DESC
+        """, nativeQuery = true)
+    List<Object[]> incidenciasUsuario(@Param("idUsuario") UUID idUsuario);
+
+    @Query(value = """
+        SELECT r.id, r.fecha_programada, r.fecha_completada, r.estado,
+               p.id, p.titulo, m.nombre, pm.cantidad, pm.unidad,
+               CASE WHEN p.id_usuario = :idUsuario THEN 'emisor' ELSE 'recolector' END AS rol_usuario,
+               CASE WHEN p.id_usuario = :idUsuario THEN recolector.id ELSE emisor.id END AS id_contraparte,
+               CASE WHEN p.id_usuario = :idUsuario THEN recolector.nombre ELSE emisor.nombre END AS nombre_contraparte,
+               CASE WHEN r.incidencia_descripcion IS NULL THEN false ELSE true END AS tiene_incidencia,
+               r.incidencia_estado
+        FROM recoleccion r
+        INNER JOIN publicacion p ON r.id_publicacion = p.id
+        INNER JOIN usuario emisor ON p.id_usuario = emisor.id
+        INNER JOIN usuario recolector ON r.id_recolector = recolector.id
+        INNER JOIN publicacion_material pm ON p.id = pm.id_publicacion
+        INNER JOIN material m ON pm.id_material = m.id
+        WHERE (p.id_usuario = :idUsuario OR r.id_recolector = :idUsuario)
+        AND (:fechaIni IS NULL OR CAST(r.fecha_programada AS date) >= :fechaIni)
+        AND (:fechaFin IS NULL OR CAST(r.fecha_programada AS date) <= :fechaFin)
+        AND (:estado IS NULL OR r.estado = :estado)
+        ORDER BY r.fecha_programada DESC
+        """, nativeQuery = true)
+    List<Object[]> actividadesDetalle(@Param("idUsuario") UUID idUsuario,
+                                      @Param("fechaIni") LocalDate fechaIni,
+                                      @Param("fechaFin") LocalDate fechaFin,
+                                      @Param("estado") String estado);
 }

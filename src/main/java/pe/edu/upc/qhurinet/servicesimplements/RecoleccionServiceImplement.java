@@ -55,4 +55,24 @@ public class RecoleccionServiceImplement implements IRecoleccionService {
     public List<Object[]> recoleccionesPorRangoYEstado(LocalDate fechaIni, LocalDate fechaFin, String estado) {
         return rR.recoleccionesPorRangoYEstado(fechaIni, fechaFin, estado);
     }
+
+    @Override
+    public List<Object[]> disponibilidadPorFecha(LocalDate fecha) {
+        return rR.disponibilidadPorFecha(fecha);
+    }
+
+    @Override
+    public List<Object[]> recoleccionesPendientesRecolector(UUID idRecolector) {
+        return rR.recoleccionesPendientesRecolector(idRecolector);
+    }
+
+    @Override
+    public List<Object[]> incidenciasUsuario(UUID idUsuario) {
+        return rR.incidenciasUsuario(idUsuario);
+    }
+
+    @Override
+    public List<Object[]> actividadesDetalle(UUID idUsuario, LocalDate fechaIni, LocalDate fechaFin, String estado) {
+        return rR.actividadesDetalle(idUsuario, fechaIni, fechaFin, estado);
+    }
 }

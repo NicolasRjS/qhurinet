@@ -16,4 +16,8 @@ public interface IRecoleccionService {
     List<Object[]> historialUsuario(UUID idUsuario, LocalDate fechaIni, LocalDate fechaFin, String estado);
     List<Object[]> promedioCalificacionRecolector(UUID idRecolector);
     List<Object[]> recoleccionesPorRangoYEstado(LocalDate fechaIni, LocalDate fechaFin, String estado);
+    List<Object[]> disponibilidadPorFecha(LocalDate fecha);
+    List<Object[]> recoleccionesPendientesRecolector(UUID idRecolector);
+    List<Object[]> incidenciasUsuario(UUID idUsuario);
+    List<Object[]> actividadesDetalle(UUID idUsuario, LocalDate fechaIni, LocalDate fechaFin, String estado);
 }

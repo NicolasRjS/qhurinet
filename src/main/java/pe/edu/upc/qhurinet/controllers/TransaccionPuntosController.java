@@ -4,7 +4,9 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.upc.qhurinet.dtos.HistorialPuntosSaldoDTO;
 import pe.edu.upc.qhurinet.dtos.PuntosMesUsuarioDTO;
 import pe.edu.upc.qhurinet.dtos.TransaccionPuntosDTO;
 import pe.edu.upc.qhurinet.entities.TransaccionPuntos;
@@ -12,6 +14,8 @@ import pe.edu.upc.qhurinet.entities.Usuario;
 import pe.edu.upc.qhurinet.servicesinterfaces.ITransaccionPuntosService;
 import pe.edu.upc.qhurinet.servicesinterfaces.IUsuarioService;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +31,7 @@ public class TransaccionPuntosController {
     private IUsuarioService uS;
 
     @GetMapping("/lista")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<TransaccionPuntosDTO>> listar() {
         ModelMapper m = new ModelMapper();
 
@@ -47,6 +52,7 @@ public class TransaccionPuntosController {
     }
 
     @PostMapping("/nuevo")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> registrar(@RequestBody TransaccionPuntosDTO dto) {
         Optional<Usuario> usuario = uS.listId(dto.getIdUsuario());
 
@@ -66,6 +72,7 @@ public class TransaccionPuntosController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@securityPermissionService.isTransaccionPuntosOwner(#id)")
     public ResponseEntity<?> buscarPorId(@PathVariable UUID id) {
         ModelMapper m = new ModelMapper();
         Optional<TransaccionPuntos> transaccion = tS.listId(id);
@@ -81,6 +88,7 @@ public class TransaccionPuntosController {
     }
 
     @PutMapping("/actualiza")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> actualizar(@RequestBody TransaccionPuntosDTO dto) {
         Optional<TransaccionPuntos> existente = tS.listId(dto.getId());
 
@@ -110,6 +118,7 @@ public class TransaccionPuntosController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> eliminar(@PathVariable UUID id) {
         Optional<TransaccionPuntos> transaccion = tS.listId(id);
 
@@ -122,6 +131,7 @@ public class TransaccionPuntosController {
         }
     }
     @GetMapping("/total-mes/{idUsuario}")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
     public ResponseEntity<?> totalPuntosMes(@PathVariable UUID idUsuario,
                                             @RequestParam("mes") String mes) {
         List<Object[]> lista = tS.totalPuntosGanadosPorMes(idUsuario, mes);
@@ -134,5 +144,58 @@ public class TransaccionPuntosController {
         dto.setNombre((String) fila[1]);
         dto.setTotalPuntosMes(((Number) fila[2]).intValue());
         return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/historial/{idUsuario}")
+    @PreAuthorize("@securityPermissionService.canCreateForUser(#idUsuario)")
+    public ResponseEntity<?> historialPuntos(@PathVariable UUID idUsuario) {
+        List<Object[]> lista = tS.historialPuntosConSaldo(idUsuario);
+
+        if (lista.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No hay registros");
+        }
+
+        List<HistorialPuntosSaldoDTO> respuesta = new ArrayList<>();
+        for (Object[] fila : lista) {
+            HistorialPuntosSaldoDTO dto = new HistorialPuntosSaldoDTO();
+            dto.setIdTransaccion(toUuid(fila[0]));
+            dto.setCreatedAt(toLocalDateTime(fila[1]));
+            dto.setTipo((String) fila[2]);
+            dto.setPuntos(toInteger(fila[3]));
+            dto.setMotivo((String) fila[4]);
+            dto.setReferenciaTipo((String) fila[5]);
+            dto.setReferenciaId(toUuid(fila[6]));
+            dto.setSaldoAcumulado(toInteger(fila[7]));
+            respuesta.add(dto);
+        }
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+    private UUID toUuid(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof UUID uuid) {
+            return uuid;
+        }
+        return UUID.fromString(value.toString());
+    }
+
+    private Integer toInteger(Object value) {
+        return value == null ? null : ((Number) value).intValue();
+    }
+
+    private LocalDateTime toLocalDateTime(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime;
+        }
+        if (value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        return LocalDateTime.parse(value.toString().replace(" ", "T"));
     }
 }
